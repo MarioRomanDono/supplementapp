@@ -40,8 +40,22 @@ func (service *SupplementService) FindByGtin(gtin string) (*Supplement, error) {
 	}
 
 	if supplement == nil {
-		return nil, fmt.Errorf("%v: %w", gtin, ErrNotFound)
+		return nil, fmt.Errorf("%s: %w", gtin, ErrNotFound)
 	}
 
 	return supplement, nil
+}
+
+func (service *SupplementService) Delete(gtin string) error {
+	supplement, err := service.repository.FindByGtin(gtin)
+
+	if err != nil {
+		return err
+	}
+
+	if supplement == nil {
+		return fmt.Errorf("%s: %w", gtin, ErrNotFound)
+	}
+
+	return service.repository.Delete(*supplement)
 }

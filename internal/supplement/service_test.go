@@ -81,7 +81,7 @@ func TestCreate_NonExisting(t *testing.T) {
 	}
 
 	if len(repository.createCalls) != 1 {
-		t.Errorf("expected create to be called just once; called: %d", len(repository.createCalls))
+		t.Errorf("expected Create to be called just once; called: %d", len(repository.createCalls))
 	}
 
 	lastCreatedSupplement := repository.createCalls[0]
@@ -109,11 +109,11 @@ func TestCreate_Existing(t *testing.T) {
 	}
 
 	if len(repository.createCalls) != 1 {
-		t.Errorf("expected create to be called just once; called: %d", len(repository.createCalls))
+		t.Errorf("expected Create to be called just once; called: %d", len(repository.createCalls))
 	}
 
 	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected findByGtinCalls to be called just once; called: %d", len(repository.findByGtinCalls))
+		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
 	}
 
 	lastFoundGtin := repository.findByGtinCalls[0]
@@ -135,7 +135,7 @@ func TestFindByGtin_NonExisting(t *testing.T) {
 	}
 
 	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected findByGtinCalls to be called just once; called: %d", len(repository.findByGtinCalls))
+		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
 	}
 
 	lastFoundGtin := repository.findByGtinCalls[0]
@@ -167,12 +167,72 @@ func TestFindByGtin_Existing(t *testing.T) {
 	}
 
 	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected findByGtinCalls to be called just once; called: %d", len(repository.findByGtinCalls))
+		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
 	}
 
 	lastFoundGtin := repository.findByGtinCalls[0]
 
 	if lastFoundGtin != randomSupplement.Gtin {
 		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
+	}
+}
+
+func TestDelete_NonExisting(t *testing.T) {
+	repository := newMockSupplementRepository()
+	service := supplement.NewSupplementService(repository)
+	gtin := gofakeit.DigitN(13)
+
+	err := service.Delete(gtin)
+
+	if !errors.Is(err, supplement.ErrNotFound) {
+		t.Errorf("expected err to be ErrNotFound; got: %s", err)
+	}
+
+	if len(repository.findByGtinCalls) != 1 {
+		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
+	}
+
+	lastFoundGtin := repository.findByGtinCalls[0]
+
+	if lastFoundGtin != gtin {
+		t.Errorf("expected %s; got %s", gtin, lastFoundGtin)
+	}
+}
+
+func TestDelete_Existing(t *testing.T) {
+	repository := newMockSupplementRepository()
+	service := supplement.NewSupplementService(repository)
+	randomSupplement := newRandomSupplement()
+
+	err := repository.Create(*randomSupplement)
+
+	if err != nil {
+		t.Errorf("expected err to be nil; got: %s", err)
+	}
+
+	err = service.Delete(randomSupplement.Gtin)
+
+	if err != nil {
+		t.Errorf("expected err to be nil; got: %s", err)
+	}
+
+	if len(repository.findByGtinCalls) != 1 {
+		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
+	}
+
+	lastFoundGtin := repository.findByGtinCalls[0]
+
+	if lastFoundGtin != randomSupplement.Gtin {
+		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
+	}
+
+	if len(repository.deleteCalls) != 1 {
+		t.Errorf("expected Delete to be called just once; called: %d", len(repository.deleteCalls))
+	}
+
+	lastDeleted := repository.deleteCalls[0]
+
+	if !cmp.Equal(lastDeleted, *randomSupplement) {
+		t.Errorf("expected %v; got %v", randomSupplement, lastDeleted)
 	}
 }
