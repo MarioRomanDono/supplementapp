@@ -59,3 +59,19 @@ func (service *SupplementService) Delete(gtin string) error {
 
 	return service.repository.Delete(*supplement)
 }
+
+func (service *SupplementService) Update(gtin string, other UpdatableSupplement) error {
+	supplement, err := service.repository.FindByGtin(gtin)
+
+	if err != nil {
+		return err
+	}
+
+	if supplement == nil {
+		return fmt.Errorf("%s: %w", gtin, ErrNotFound)
+	}
+
+	updated := supplement.update(other)
+
+	return service.repository.Update(updated)
+}
