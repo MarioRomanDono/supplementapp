@@ -5,26 +5,26 @@ type Supplement struct {
 	Name          string `json:"name"`
 	Brand         string `json:"brand"`
 	Flavor        string `json:"flavor"`
-	Carbohydrates int    `json:"carbohydrates"`
-	Electrolytes  int    `json:"electrolytes"`
-	Maltodextrose int    `json:"maltodextrose"`
-	Fructose      int    `json:"fructose"`
-	Caffeine      int    `json:"caffeine"`
-	Sodium        int    `json:"sodium"`
-	Protein       int    `json:"protein"`
+	Carbohydrates float32    `json:"carbohydrates"`
+	Electrolytes  float32    `json:"electrolytes"`
+	Maltodextrose float32    `json:"maltodextrose"`
+	Fructose      float32    `json:"fructose"`
+	Caffeine      float32    `json:"caffeine"`
+	Sodium        float32    `json:"sodium"`
+	Protein       float32    `json:"protein"`
 }
 
 type UpdatableSupplement struct {
 	Name          *string `json:"name,omitempty"`
 	Brand         *string `json:"brand,omitempty"`
 	Flavor        *string `json:"flavor,omitempty"`
-	Carbohydrates *int    `json:"carbohydrates,omitempty"`
-	Electrolytes  *int    `json:"electrolytes,omitempty"`
-	Maltodextrose *int    `json:"maltodextrose,omitempty"`
-	Fructose      *int    `json:"fructose,omitempty"`
-	Caffeine      *int    `json:"caffeine,omitempty"`
-	Sodium        *int    `json:"sodium,omitempty"`
-	Protein       *int    `json:"protein,omitempty"`
+	Carbohydrates *float32    `json:"carbohydrates,omitempty"`
+	Electrolytes  *float32    `json:"electrolytes,omitempty"`
+	Maltodextrose *float32    `json:"maltodextrose,omitempty"`
+	Fructose      *float32    `json:"fructose,omitempty"`
+	Caffeine      *float32    `json:"caffeine,omitempty"`
+	Sodium        *float32    `json:"sodium,omitempty"`
+	Protein       *float32    `json:"protein,omitempty"`
 }
 
 type SupplementRepository interface {

@@ -59,13 +59,13 @@ func newRandomSupplement() *supplement.Supplement {
 		Name:          gofakeit.Name(),
 		Brand:         gofakeit.Name(),
 		Flavor:        gofakeit.Word(),
-		Carbohydrates: gofakeit.Number(0, 100),
-		Electrolytes:  gofakeit.Number(0, 100),
-		Maltodextrose: gofakeit.Number(0, 100),
-		Fructose:      gofakeit.Number(0, 100),
-		Caffeine:      gofakeit.Number(0, 100),
-		Sodium:        gofakeit.Number(0, 100),
-		Protein:       gofakeit.Number(0, 100),
+		Carbohydrates: gofakeit.Float32Range(0, 100),
+		Electrolytes:  gofakeit.Float32Range(0, 100),
+		Maltodextrose: gofakeit.Float32Range(0, 100),
+		Fructose:      gofakeit.Float32Range(0, 100),
+		Caffeine:      gofakeit.Float32Range(0, 100),
+		Sodium:        gofakeit.Float32Range(0, 100),
+		Protein:       gofakeit.Float32Range(0, 100),
 	}
 }
 
@@ -117,13 +117,13 @@ func newRandomUpdatableSupplement() *supplement.UpdatableSupplement {
 	var name *string
 	var brand *string
 	var flavor *string
-	var carbohydrates *int
-	var electrolytes *int
-	var maltodextrose *int
-	var fructose *int
-	var caffeine *int
-	var sodium *int
-	var protein *int
+	var carbohydrates *float32
+	var electrolytes *float32
+	var maltodextrose *float32
+	var fructose *float32
+	var caffeine *float32
+	var sodium *float32
+	var protein *float32
 
 	if gofakeit.Bool() {
 		n := gofakeit.Name()
@@ -141,37 +141,37 @@ func newRandomUpdatableSupplement() *supplement.UpdatableSupplement {
 	}
 
 	if gofakeit.Bool() {
-		c := gofakeit.Number(0, 100)
+		c := gofakeit.Float32Range(0, 100)
 		carbohydrates = &c
 	}
 
 	if gofakeit.Bool() {
-		e := gofakeit.Number(0, 100)
+		e := gofakeit.Float32Range(0, 100)
 		electrolytes = &e
 	}
 
 	if gofakeit.Bool() {
-		m := gofakeit.Number(0, 100)
+		m := gofakeit.Float32Range(0, 100)
 		maltodextrose = &m
 	}
 
 	if gofakeit.Bool() {
-		f := gofakeit.Number(0, 100)
+		f := gofakeit.Float32Range(0, 100)
 		fructose = &f
 	}
 
 	if gofakeit.Bool() {
-		c := gofakeit.Number(0, 100)
+		c := gofakeit.Float32Range(0, 100)
 		caffeine = &c
 	}
 
 	if gofakeit.Bool() {
-		s := gofakeit.Number(0, 100)
+		s := gofakeit.Float32Range(0, 100)
 		sodium = &s
 	}
 
 	if gofakeit.Bool() {
-		p := gofakeit.Number(0, 100)
+		p := gofakeit.Float32Range(0, 100)
 		protein = &p
 	}
 
