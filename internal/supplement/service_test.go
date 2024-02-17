@@ -2,7 +2,6 @@ package supplement_test
 
 import (
 	"errors"
-	"strconv"
 	"testing"
 
 	"github.com/marioromandono/supplementapp/internal/supplement"
@@ -17,13 +16,6 @@ type mockSupplementRepository struct {
 	createCalls     []supplement.Supplement
 	updateCalls     []supplement.Supplement
 	deleteCalls     []supplement.Supplement
-	searchCalls	    []struct {
-		Filters []supplement.SearchFilter
-		Order   *supplement.SearchOrder
-		Limit   int
-		Cursor  *supplement.SearchCursor
-	}
-	searchResponse *supplement.SearchResponse
 }
 
 func (repository *mockSupplementRepository) FindByGtin(gtin string) (*supplement.Supplement, error) {
@@ -53,25 +45,6 @@ func (repository *mockSupplementRepository) Delete(supplement supplement.Supplem
 	delete(repository.store, supplement.Gtin)
 	repository.deleteCalls = append(repository.deleteCalls, supplement)
 	return nil
-}
-
-func (repository *mockSupplementRepository) Search(
-	filters []supplement.SearchFilter,
-	order *supplement.SearchOrder,
-	limit int,
-	cursor *supplement.SearchCursor) (*supplement.SearchResponse, error) {
-	repository.searchCalls = append(repository.searchCalls, struct {
-		Filters []supplement.SearchFilter
-		Order   *supplement.SearchOrder
-		Limit   int
-		Cursor  *supplement.SearchCursor
-	}{filters, order, limit, cursor})
-
-	return repository.searchResponse, nil
-}
-
-func (repository *mockSupplementRepository) whenSearchThenReturn(response *supplement.SearchResponse) {
-	repository.searchResponse = response
 }
 
 func newMockSupplementRepository() *mockSupplementRepository {
@@ -213,66 +186,6 @@ func newRandomUpdatableSupplement() *supplement.UpdatableSupplement {
 		Caffeine:      caffeine,
 		Sodium:        sodium,
 		Protein:       protein,
-	}
-}
-
-func generateRandomSearchOptions() supplement.SearchOptions {
-	var filters []supplement.SearchFilter
-	var order *supplement.SearchOrder
-	var limit int
-	var cursor *supplement.SearchCursor
-
-	if gofakeit.Bool() {
-		size := gofakeit.Number(1, 10)
-		
-		for i := 0; i < size; i++ {
-			if gofakeit.Bool() {
-				filters = append(filters, generateRandomStringFilter())
-			} else {
-				filters = append(filters, generateRandomFloatFilter())
-			}
-		}
-	}
-
-	if gofakeit.Bool() {
-		order = &supplement.SearchOrder{
-			Field: gofakeit.RandomString([]string{"name", "brand", "flavor", "carbohydrates", "electrolytes", "maltodextrose", "fructose", "caffeine", "sodium", "protein"}),
-			Direction: gofakeit.RandomString([]string{"asc", "desc"}),
-		}
-	}
-
-	if gofakeit.Bool() {
-		limit = gofakeit.Number(1, 100)
-	}
-
-	if gofakeit.Bool() {
-		cursor = &supplement.SearchCursor{
-			Cursor: gofakeit.Word(),
-			Direction: gofakeit.RandomString([]string{"next", "previous"}),
-		}
-	}
-
-	return supplement.SearchOptions{
-		Filters: filters,
-		Order: order,
-		Limit: limit,
-		Cursor: cursor,
-	}
-}
-
-func generateRandomStringFilter() supplement.SearchFilter {
-	return supplement.SearchFilter{
-		Field: gofakeit.RandomString([]string{"name", "brand", "flavor"}),
-		Operator: gofakeit.RandomString([]string{"=", "!=", "contains"}),
-		Value: gofakeit.Word(),
-	}
-}
-
-func generateRandomFloatFilter() supplement.SearchFilter {
-	return supplement.SearchFilter{
-		Field: gofakeit.RandomString([]string{"carbohydrates", "electrolytes", "maltodextrose", "fructose", "caffeine", "sodium", "protein"}),
-		Operator: gofakeit.RandomString([]string{"=", "!=", ">", "<", ">=", "<="}),
-		Value: strconv.FormatFloat(gofakeit.Float64(), 'f', -1, 32),
 	}
 }
 
@@ -505,168 +418,5 @@ func TestUpdate_Existing(t *testing.T) {
 
 	if !cmp.Equal(lastUpdated, expectedUpdated) {
 		t.Errorf("expected %v; got %v", expectedUpdated, lastUpdated)
-	}
-}
-
-func TestSearch_InvalidFilterFields(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	filters := []supplement.SearchFilter{
-		{
-			Field: "invalid",
-		},
-	}
-	options := supplement.SearchOptions{
-		Filters: filters,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidFilterField) {
-		t.Errorf("expected err to be ErrInvalidFilterField; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidFilterOperator(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	filters := []supplement.SearchFilter{
-		{
-			Field: gofakeit.RandomString([]string{"name", "brand", "flavor", "carbohydrates", "electrolytes", "maltodextrose", "fructose", "caffeine", "sodium", "protein"}),
-			Operator: "invalid",
-		},
-	}
-	options := supplement.SearchOptions{
-		Filters: filters,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidFilterOperator) {
-		t.Errorf("expected err to be ErrInvalidFilterOperator; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidFilterValueFloat(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	filters := []supplement.SearchFilter{
-		{
-			Field: gofakeit.RandomString([]string{"carbohydrates", "electrolytes", "maltodextrose", "fructose", "caffeine", "sodium", "protein"}),
-			Operator: gofakeit.RandomString([]string{"=", "!=", ">", "<", ">=", "<="}),
-			Value: "invalid",
-		},
-	}
-	options := supplement.SearchOptions{
-		Filters: filters,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidFilterValue) {
-		t.Errorf("expected err to be ErrInvalidFilterValue; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidOrderField(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	order := supplement.SearchOrder{
-		Field: "invalid",
-	}
-	options := supplement.SearchOptions{
-		Order: &order,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidOrderField) {
-		t.Errorf("expected err to be ErrInvalidOrderField; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidOrderDirection(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	order := supplement.SearchOrder{
-		Field: gofakeit.RandomString([]string{"name", "brand", "flavor", "carbohydrates", "electrolytes", "maltodextrose", "fructose", "caffeine", "sodium", "protein"}),
-		Direction: "invalid",
-	}
-	options := supplement.SearchOptions{
-		Order: &order,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidOrderDirection) {
-		t.Errorf("expected err to be ErrInvalidOrderDirection; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidLimit(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	limit := gofakeit.Number(-100, -1)
-	options := supplement.SearchOptions{
-		Limit: limit,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidLimit) {
-		t.Errorf("expected err to be ErrInvalidLimit; got: %s", err)
-	}
-}
-
-func TestSearch_InvalidCursorDirection(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	cursor := supplement.SearchCursor{
-		Direction: "invalid",
-	}
-	options := supplement.SearchOptions{
-		Cursor: &cursor,
-	}
-
-	_, err := service.Search(options)
-
-	if !errors.Is(err, supplement.ErrInvalidCursorDirection) {
-		t.Errorf("expected err to be ErrInvalidCursorDirection; got: %s", err)
-	}
-}
-
-func TestSearch(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	options := generateRandomSearchOptions()
-	
-	var expected *supplement.SearchResponse
-	gofakeit.Struct(&expected)
-	repository.whenSearchThenReturn(expected)
-
-	response, err := service.Search(options)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	if len(repository.searchCalls) != 1 {
-		t.Errorf("expected Search to be called just once; called: %d", len(repository.searchCalls))
-	}
-
-	lastSearch := repository.searchCalls[0]
-	searchArgs := struct {
-		Filters []supplement.SearchFilter
-		Order   *supplement.SearchOrder
-		Limit   int
-		Cursor  *supplement.SearchCursor
-	}{options.Filters, options.Order, options.Limit, options.Cursor}
-
-	if !cmp.Equal(lastSearch, searchArgs) {
-		t.Errorf("expected %v; got %v", searchArgs, lastSearch)
-	}
-
-	if !cmp.Equal(response, expected) {
-		t.Errorf("expected %v; got %v", expected, response)
 	}
 }

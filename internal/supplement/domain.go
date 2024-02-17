@@ -27,42 +27,11 @@ type UpdatableSupplement struct {
 	Protein       *float32    `json:"protein,omitempty"`
 }
 
-type SearchFilter struct {
-	Field string
-	Operator string
-	Value string
-}
-
-type SearchOrder struct {
-	Field string
-	Direction string
-}
-
-type SearchCursor struct {
-	Cursor string
-	Direction string
-}
-
-type SearchOptions struct {
-	Filters []SearchFilter
-	Order *SearchOrder
-	Limit int
-	Cursor *SearchCursor
-}
-
-type SearchResponse struct {
-	Items []Supplement
-	Next string
-	Previous string
-	Total int
-}
-
 type SupplementRepository interface {
 	FindByGtin(gtin string) (*Supplement, error)
 	Create(supplement Supplement) error
 	Update(supplement Supplement) error
 	Delete(supplement Supplement) error
-	Search(filters []SearchFilter, order *SearchOrder, limit int, cursor *SearchCursor) (*SearchResponse, error)
 }
 
 func (supplement *Supplement) update(other UpdatableSupplement) Supplement {
