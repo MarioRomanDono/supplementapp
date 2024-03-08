@@ -1,6 +1,7 @@
 package supplement
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -18,8 +19,8 @@ func NewSupplementService(repository SupplementRepository) *SupplementService {
 	return &SupplementService{repository: repository}
 }
 
-func (service *SupplementService) Create(supplement Supplement) error {
-	existing, err := service.repository.FindByGtin(supplement.Gtin)
+func (service *SupplementService) Create(ctx context.Context, supplement Supplement) error {
+	existing, err := service.repository.FindByGtin(ctx, supplement.Gtin)
 
 	if err != nil {
 		return err
@@ -29,11 +30,11 @@ func (service *SupplementService) Create(supplement Supplement) error {
 		return fmt.Errorf("%v: %w", supplement, ErrAlreadyExists)
 	}
 
-	return service.repository.Create(supplement)
+	return service.repository.Create(ctx, supplement)
 }
 
-func (service *SupplementService) FindByGtin(gtin string) (*Supplement, error) {
-	supplement, err := service.repository.FindByGtin(gtin)
+func (service *SupplementService) FindByGtin(ctx context.Context, gtin string) (*Supplement, error) {
+	supplement, err := service.repository.FindByGtin(ctx, gtin)
 
 	if err != nil {
 		return nil, err
@@ -46,8 +47,8 @@ func (service *SupplementService) FindByGtin(gtin string) (*Supplement, error) {
 	return supplement, nil
 }
 
-func (service *SupplementService) Delete(gtin string) error {
-	supplement, err := service.repository.FindByGtin(gtin)
+func (service *SupplementService) Delete(ctx context.Context, gtin string) error {
+	supplement, err := service.repository.FindByGtin(ctx, gtin)
 
 	if err != nil {
 		return err
@@ -57,11 +58,11 @@ func (service *SupplementService) Delete(gtin string) error {
 		return fmt.Errorf("%s: %w", gtin, ErrNotFound)
 	}
 
-	return service.repository.Delete(*supplement)
+	return service.repository.Delete(ctx, *supplement)
 }
 
-func (service *SupplementService) Update(gtin string, other UpdatableSupplement) error {
-	supplement, err := service.repository.FindByGtin(gtin)
+func (service *SupplementService) Update(ctx context.Context, gtin string, other UpdatableSupplement) error {
+	supplement, err := service.repository.FindByGtin(ctx, gtin)
 
 	if err != nil {
 		return err
@@ -73,5 +74,5 @@ func (service *SupplementService) Update(gtin string, other UpdatableSupplement)
 
 	updated := supplement.update(other)
 
-	return service.repository.Update(updated)
+	return service.repository.Update(ctx, updated)
 }

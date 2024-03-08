@@ -1,6 +1,7 @@
 package supplement_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -18,7 +19,7 @@ type mockSupplementRepository struct {
 	deleteCalls     []supplement.Supplement
 }
 
-func (repository *mockSupplementRepository) FindByGtin(gtin string) (*supplement.Supplement, error) {
+func (repository *mockSupplementRepository) FindByGtin(ctx context.Context, gtin string) (*supplement.Supplement, error) {
 	repository.findByGtinCalls = append(repository.findByGtinCalls, gtin)
 	stored, ok := repository.store[gtin]
 
@@ -29,19 +30,19 @@ func (repository *mockSupplementRepository) FindByGtin(gtin string) (*supplement
 	return &stored, nil
 }
 
-func (repository *mockSupplementRepository) Create(supplement supplement.Supplement) error {
+func (repository *mockSupplementRepository) Create(ctx context.Context, supplement supplement.Supplement) error {
 	repository.store[supplement.Gtin] = supplement
 	repository.createCalls = append(repository.createCalls, supplement)
 	return nil
 }
 
-func (repository *mockSupplementRepository) Update(supplement supplement.Supplement) error {
+func (repository *mockSupplementRepository) Update(ctx context.Context, supplement supplement.Supplement) error {
 	repository.store[supplement.Gtin] = supplement
 	repository.updateCalls = append(repository.updateCalls, supplement)
 	return nil
 }
 
-func (repository *mockSupplementRepository) Delete(supplement supplement.Supplement) error {
+func (repository *mockSupplementRepository) Delete(ctx context.Context, supplement supplement.Supplement) error {
 	delete(repository.store, supplement.Gtin)
 	repository.deleteCalls = append(repository.deleteCalls, supplement)
 	return nil
@@ -194,7 +195,7 @@ func TestCreate_NonExisting(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	randomSupplement := newRandomSupplement()
 
-	err := service.Create(*randomSupplement)
+	err := service.Create(context.TODO(), *randomSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
@@ -216,13 +217,13 @@ func TestCreate_Existing(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	randomSupplement := newRandomSupplement()
 
-	err := repository.Create(*randomSupplement)
+	err := repository.Create(context.TODO(), *randomSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
 	}
 
-	err = service.Create(*randomSupplement)
+	err = service.Create(context.TODO(), *randomSupplement)
 
 	if !errors.Is(err, supplement.ErrAlreadyExists) {
 		t.Errorf("expected err to be ErrAlreadyExists; got: %s", err)
@@ -248,7 +249,7 @@ func TestFindByGtin_NonExisting(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	gtin := gofakeit.DigitN(13)
 
-	_, err := service.FindByGtin(gtin)
+	_, err := service.FindByGtin(context.TODO(), gtin)
 
 	if !errors.Is(err, supplement.ErrNotFound) {
 		t.Errorf("expected err to be ErrNotFound; got: %s", err)
@@ -270,13 +271,13 @@ func TestFindByGtin_Existing(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	randomSupplement := newRandomSupplement()
 
-	err := repository.Create(*randomSupplement)
+	err := repository.Create(context.TODO(), *randomSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
 	}
 
-	foundSupplement, err := service.FindByGtin(randomSupplement.Gtin)
+	foundSupplement, err := service.FindByGtin(context.TODO(), randomSupplement.Gtin)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
@@ -302,7 +303,7 @@ func TestDelete_NonExisting(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	gtin := gofakeit.DigitN(13)
 
-	err := service.Delete(gtin)
+	err := service.Delete(context.TODO(), gtin)
 
 	if !errors.Is(err, supplement.ErrNotFound) {
 		t.Errorf("expected err to be ErrNotFound; got: %s", err)
@@ -324,13 +325,13 @@ func TestDelete_Existing(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	randomSupplement := newRandomSupplement()
 
-	err := repository.Create(*randomSupplement)
+	err := repository.Create(context.TODO(), *randomSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
 	}
 
-	err = service.Delete(randomSupplement.Gtin)
+	err = service.Delete(context.TODO(), randomSupplement.Gtin)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
@@ -363,7 +364,7 @@ func TestUpdate_NonExisting(t *testing.T) {
 	gtin := gofakeit.DigitN(13)
 	updatableSupplement := newRandomUpdatableSupplement()
 
-	err := service.Update(gtin, *updatableSupplement)
+	err := service.Update(context.TODO(), gtin, *updatableSupplement)
 
 	if !errors.Is(err, supplement.ErrNotFound) {
 		t.Errorf("expected err to be ErrNotFound; got: %s", err)
@@ -385,7 +386,7 @@ func TestUpdate_Existing(t *testing.T) {
 	service := supplement.NewSupplementService(repository)
 	randomSupplement := newRandomSupplement()
 
-	err := repository.Create(*randomSupplement)
+	err := repository.Create(context.TODO(), *randomSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)
@@ -393,7 +394,7 @@ func TestUpdate_Existing(t *testing.T) {
 
 	updatableSupplement := newRandomUpdatableSupplement()
 
-	err = service.Update(randomSupplement.Gtin, *updatableSupplement)
+	err = service.Update(context.TODO(), randomSupplement.Gtin, *updatableSupplement)
 
 	if err != nil {
 		t.Errorf("expected err to be nil; got: %s", err)

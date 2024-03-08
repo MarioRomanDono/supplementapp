@@ -1,5 +1,9 @@
 package supplement
 
+import (
+	"context"
+)
+
 type Supplement struct {
 	Gtin          string `json:"gtin"`
 	Name          string `json:"name"`
@@ -28,10 +32,10 @@ type UpdatableSupplement struct {
 }
 
 type SupplementRepository interface {
-	FindByGtin(gtin string) (*Supplement, error)
-	Create(supplement Supplement) error
-	Update(supplement Supplement) error
-	Delete(supplement Supplement) error
+	FindByGtin(ctx context.Context, gtin string) (*Supplement, error)
+	Create(ctx context.Context, supplement Supplement) error
+	Update(ctx context.Context, supplement Supplement) error
+	Delete(ctx context.Context, supplement Supplement) error
 }
 
 func (supplement *Supplement) update(other UpdatableSupplement) Supplement {
