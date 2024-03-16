@@ -16,7 +16,7 @@ import (
 
 func setupTest(t *testing.T, ctx context.Context) (*mongo.Collection, *mongo.Client) {
 	t.Helper()
-	err := godotenv.Load("../../.env.offline")
+	err := godotenv.Load("../../.env")
 	if err != nil {
 		t.Fatalf("could not load .env file: %v", err)
 	}

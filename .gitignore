@@ -22,3 +22,6 @@ go.work
 
 # IDEs
 .idea
+
+# Environment variables
+.env
