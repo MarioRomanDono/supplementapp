@@ -4,17 +4,17 @@ import (
 	"context"
 	"os"
 	"testing"
-	"reflect"
 
 	"github.com/marioromandono/supplementapp/internal/supplement"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson"
-	"github.com/joho/godotenv"
 )
 
-func setupTest(t *testing.T, ctx context.Context) (*mongo.Collection, *mongo.Client) {
+func setup(t *testing.T, ctx context.Context) (*mongo.Collection, *mongo.Client) {
 	t.Helper()
 	err := godotenv.Load("../../.env")
 	if err != nil {
@@ -30,7 +30,7 @@ func setupTest(t *testing.T, ctx context.Context) (*mongo.Collection, *mongo.Cli
 	return client.Database(os.Getenv("MONGODB_DB")).Collection("supplements"), client
 }
 
-func teardownTest(t *testing.T, ctx context.Context, client *mongo.Client) {
+func teardown(t *testing.T, ctx context.Context, client *mongo.Client) {
 	t.Cleanup(func() {
 		err := client.Database(os.Getenv("MONGODB_DB")).Collection("supplements").Drop(ctx)
 		if err != nil {
@@ -44,115 +44,179 @@ func teardownTest(t *testing.T, ctx context.Context, client *mongo.Client) {
 	})
 }
 
-func TestCreate(t *testing.T) {
-	t.Run("successful create", func(t *testing.T) {
+func TestMongoDBSupplementRepository_Create(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setupTest(t, context)
-		teardownTest(t, context, client)
+		collection, client := setup(t, context)
+		teardown(t, context, client)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
-		expected := newRandomSupplement()
-		err := repo.Create(context, *expected)
+		want := supplement.Supplement{
+			Gtin: "1234567890123",
+			Name: "name",
+			Brand: "brand",
+			Flavor: "flavor",
+			Carbohydrates: 1.0,
+			Electrolytes: 1.0,
+			Maltodextrose: 1.0,
+			Fructose: 1.0,
+			Caffeine: 1.0,
+			Sodium: 1.0,
+			Protein: 1.0,
+		}
+		err := repo.Create(context, want)
 
 		if err != nil {
-			t.Errorf("expected err to be nil, got %v", err)
+			t.Errorf("MongoDBSupplementRepository.Create() error = %v, want nil", err)
 		}
 
-		var actual *supplement.Supplement
-		collection.FindOne(context, bson.D{{Key: "gtin", Value: expected.Gtin}}).Decode(&actual)
+		var got supplement.Supplement
+		collection.FindOne(context, bson.D{{Key: "gtin", Value: want.Gtin}}).Decode(&got)
 		
-		if !reflect.DeepEqual(expected, actual) {
-			t.Errorf("expected %v, got %v", expected, actual)
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("MongoDBSupplementRepository.Create() mismatch (-got +want):\n%s", diff)
 		}
 	})
 }
 
-func TestFindByGtin(t *testing.T) {
-	t.Run("successful find", func(t *testing.T) {
-		context := context.Background()
-		collection, client := setupTest(t, context)
-		teardownTest(t, context, client)
-
-		repo := supplement.NewMongoDBSupplementRepository(collection)
-		expected := newRandomSupplement()
-		collection.InsertOne(context, expected)
-
-		actual, err := repo.FindByGtin(context, expected.Gtin)
-
-		if err != nil {
-			t.Errorf("expected err to be nil, got %v", err)
-		}
-
-		if !reflect.DeepEqual(expected, actual) {
-			t.Errorf("expected %v, got %v", expected, actual)
-		}
-	})
+func TestMongoDBSupplementRepository_FindByGtin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 
 	t.Run("not found", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setupTest(t, context)
-		teardownTest(t, context, client)
+		collection, client := setup(t, context)
+		teardown(t, context, client)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
-		actual, err := repo.FindByGtin(context, "1234567890123")
+		got, err := repo.FindByGtin(context, "1234567890123")
 
 		if err != nil {
-			t.Errorf("expected err to be nil, got %v", err)
+			t.Errorf("MongoDBSupplementRepository.FindByGtin() error = %v, want nil", err)
 		}
 
-		if actual != nil {
-			t.Errorf("expected nil, got %v", actual)
+		if got != nil {
+			t.Errorf("MongoDBSupplementRepository.FindByGtin() got = %v, want nil", got)
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		context := context.Background()
+		collection, client := setup(t, context)
+		teardown(t, context, client)
+
+		repo := supplement.NewMongoDBSupplementRepository(collection)
+		want := &supplement.Supplement{
+			Gtin: "1234567890123",
+			Name: "name",
+			Brand: "brand",
+			Flavor: "flavor",
+			Carbohydrates: 1.0,
+			Electrolytes: 1.0,
+			Maltodextrose: 1.0,
+			Fructose: 1.0,
+			Caffeine: 1.0,
+			Sodium: 1.0,
+			Protein: 1.0,
+		}
+		collection.InsertOne(context, want)
+
+		got, err := repo.FindByGtin(context, want.Gtin)
+
+		if err != nil {
+			t.Errorf("MongoDBSupplementRepository.FindByGtin() error = %v, want nil", err)
+		}
+
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("MongoDBSupplementRepository.FindByGtin() mismatch (-got +want):\n%s", diff)
 		}
 	})
 }
 
-func TestUpdate(t *testing.T) {
-	t.Run("successful update", func(t *testing.T) {
+func TestMongoDBSupplementRepository_Update(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setupTest(t, context)
-		teardownTest(t, context, client)
+		collection, client := setup(t, context)
+		teardown(t, context, client)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
-		expected := newRandomSupplement()
-		collection.InsertOne(context, expected)
+		want := supplement.Supplement{
+			Gtin: "1234567890123",
+			Name: "name",
+			Brand: "brand",
+			Flavor: "flavor",
+			Carbohydrates: 1.0,
+			Electrolytes: 1.0,
+			Maltodextrose: 1.0,
+			Fructose: 1.0,
+			Caffeine: 1.0,
+			Sodium: 1.0,
+			Protein: 1.0,
+		}
+		collection.InsertOne(context, want)
 
-		expected.Name = "new name"
-		err := repo.Update(context, *expected)
+		want.Name = "new name"
+		err := repo.Update(context, want)
 
 		if err != nil {
-			t.Errorf("expected err to be nil, got %v", err)
+			t.Errorf("MongoDBSupplementRepository.Update() error = %v, want nil", err)
 		}
 
-		var actual *supplement.Supplement
-		collection.FindOne(context, bson.D{{Key: "gtin", Value: expected.Gtin}}).Decode(&actual)
+		var got supplement.Supplement
+		collection.FindOne(context, bson.D{{Key: "gtin", Value: want.Gtin}}).Decode(&got)
 		
-		if !reflect.DeepEqual(expected, actual) {
-			t.Errorf("expected %v, got %v", expected, actual)
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("MongoDBSupplementRepository.Update() mismatch (-got +want):\n%s", diff)
 		}
 	})
 }
 
-func TestDelete(t *testing.T) {
-	t.Run("successful delete", func(t *testing.T) {
+func TestMongoDBSupplementRepository_Delete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setupTest(t, context)
-		teardownTest(t, context, client)
+		collection, client := setup(t, context)
+		teardown(t, context, client)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
-		expected := newRandomSupplement()
-		collection.InsertOne(context, expected)
+		s := supplement.Supplement{
+			Gtin: "1234567890123",
+			Name: "name",
+			Brand: "brand",
+			Flavor: "flavor",
+			Carbohydrates: 1.0,
+			Electrolytes: 1.0,
+			Maltodextrose: 1.0,
+			Fructose: 1.0,
+			Caffeine: 1.0,
+			Sodium: 1.0,
+			Protein: 1.0,
+		}
+		collection.InsertOne(context, s)
 
-		err := repo.Delete(context, *expected)
+		err := repo.Delete(context, s)
 
 		if err != nil {
-			t.Errorf("expected err to be nil, got %v", err)
+			t.Errorf("MongoDBSupplementRepository.Delete() error = %v, want nil", err)
 		}
 
-		var actual *supplement.Supplement
-		collection.FindOne(context, bson.D{{Key: "gtin", Value: expected.Gtin}}).Decode(&actual)
+		var got *supplement.Supplement
+		collection.FindOne(context, bson.D{{Key: "gtin", Value: s.Gtin}}).Decode(&got)
 		
-		if actual != nil {
-			t.Errorf("expected nil, got %v", actual)
+		if got != nil {
+			t.Errorf("MongoDBSupplementRepository.Delete() got = %v, want nil", got)
 		}
 	})
 }

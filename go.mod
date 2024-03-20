@@ -3,7 +3,6 @@ module github.com/marioromandono/supplementapp
 go 1.22.1
 
 require (
-	github.com/brianvoe/gofakeit/v6 v6.26.3
 	github.com/google/go-cmp v0.6.0
 	github.com/joho/godotenv v1.5.1
 	go.mongodb.org/mongo-driver v1.14.0

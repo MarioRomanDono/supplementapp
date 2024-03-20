@@ -7,417 +7,489 @@ import (
 
 	"github.com/marioromandono/supplementapp/internal/supplement"
 
-	"github.com/brianvoe/gofakeit/v6"
 	"github.com/google/go-cmp/cmp"
 )
 
-type mockSupplementRepository struct {
-	store           map[string]supplement.Supplement
-	findByGtinCalls []string
-	createCalls     []supplement.Supplement
-	updateCalls     []supplement.Supplement
-	deleteCalls     []supplement.Supplement
+type stubSupplementRepository struct {
+	store map[string]supplement.Supplement
 }
 
-func (repository *mockSupplementRepository) FindByGtin(ctx context.Context, gtin string) (*supplement.Supplement, error) {
-	repository.findByGtinCalls = append(repository.findByGtinCalls, gtin)
-	stored, ok := repository.store[gtin]
-
+func (r *stubSupplementRepository) FindByGtin(ctx context.Context, gtin string) (*supplement.Supplement, error) {
+	s, ok := r.store[gtin]
 	if !ok {
 		return nil, nil
 	}
-
-	return &stored, nil
+	return &s, nil
 }
 
-func (repository *mockSupplementRepository) Create(ctx context.Context, supplement supplement.Supplement) error {
-	repository.store[supplement.Gtin] = supplement
-	repository.createCalls = append(repository.createCalls, supplement)
+func (r *stubSupplementRepository) Create(ctx context.Context, s supplement.Supplement) error {
+	r.store[s.Gtin] = s
 	return nil
 }
 
-func (repository *mockSupplementRepository) Update(ctx context.Context, supplement supplement.Supplement) error {
-	repository.store[supplement.Gtin] = supplement
-	repository.updateCalls = append(repository.updateCalls, supplement)
+func (r *stubSupplementRepository) Update(ctx context.Context, s supplement.Supplement) error {
+	r.store[s.Gtin] = s
 	return nil
 }
 
-func (repository *mockSupplementRepository) Delete(ctx context.Context, supplement supplement.Supplement) error {
-	delete(repository.store, supplement.Gtin)
-	repository.deleteCalls = append(repository.deleteCalls, supplement)
+func (r *stubSupplementRepository) Delete(ctx context.Context, s supplement.Supplement) error {
+	delete(r.store, s.Gtin)
 	return nil
 }
 
-func newMockSupplementRepository() *mockSupplementRepository {
-	return &mockSupplementRepository{
-		store: make(map[string]supplement.Supplement),
+func Ptr[T any](v T) *T {
+    return &v
+}
+
+func TestSupplementService_FindByGtin(t *testing.T) {
+	t.Parallel()
+	type fields struct {
+		repository supplement.SupplementRepository
+	}
+	type args struct {
+		ctx  context.Context
+		gtin string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *supplement.Supplement
+		wantErr error
+		wantStore map[string]supplement.Supplement
+	}{
+		{
+			name: "not found",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+			},
+			want: nil,
+			wantErr: supplement.ErrNotFound,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "found",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+			},
+			want: &supplement.Supplement{Gtin: "1234567890123"},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := supplement.NewSupplementService(tt.fields.repository)
+			got, err := service.FindByGtin(tt.args.ctx, tt.args.gtin)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("SupplementService.FindByGtin() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("SupplementService.FindByGtin() = %v, want %v", got, tt.want)
+			}
+			if diff := cmp.Diff(tt.fields.repository.(*stubSupplementRepository).store, tt.wantStore); diff != "" {
+				t.Errorf("SupplementService.FindByGtin() store mismatch (-got +want):\n%s", diff)
+			}
+		})
 	}
 }
 
-func newRandomSupplement() *supplement.Supplement {
-	return &supplement.Supplement{
-		Gtin:          gofakeit.DigitN(13),
-		Name:          gofakeit.Name(),
-		Brand:         gofakeit.Name(),
-		Flavor:        gofakeit.Word(),
-		Carbohydrates: gofakeit.Float32Range(0, 100),
-		Electrolytes:  gofakeit.Float32Range(0, 100),
-		Maltodextrose: gofakeit.Float32Range(0, 100),
-		Fructose:      gofakeit.Float32Range(0, 100),
-		Caffeine:      gofakeit.Float32Range(0, 100),
-		Sodium:        gofakeit.Float32Range(0, 100),
-		Protein:       gofakeit.Float32Range(0, 100),
+func TestSupplementService_Create(t *testing.T) {
+	t.Parallel()
+	type fields struct {
+		repository supplement.SupplementRepository
+	}
+	type args struct {
+		ctx        context.Context
+		supplement supplement.Supplement
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr error
+		wantStore map[string]supplement.Supplement
+	}{
+		{
+			name: "already exists",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{Gtin: "1234567890123"},
+			},
+			wantErr: supplement.ErrAlreadyExists,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123"},
+			},
+		},
+		{
+			name: "success",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{Gtin: "1234567890123"},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := supplement.NewSupplementService(tt.fields.repository)
+			if err := service.Create(tt.args.ctx, tt.args.supplement); !errors.Is(err, tt.wantErr) {
+				t.Errorf("SupplementService.Create() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if diff := cmp.Diff(tt.fields.repository.(*stubSupplementRepository).store, tt.wantStore); diff != "" {
+				t.Errorf("SupplementService.Create() store mismatch (-got +want):\n%s", diff)
+			}
+		})
 	}
 }
 
-func updateSupplement(supplement supplement.Supplement, other supplement.UpdatableSupplement) supplement.Supplement {
-	if other.Name != nil {
-		supplement.Name = *other.Name
+
+func TestSupplementService_Update(t *testing.T) {
+	t.Parallel()
+	type fields struct {
+		repository supplement.SupplementRepository
 	}
-
-	if other.Brand != nil {
-		supplement.Brand = *other.Brand
+	type args struct {
+		ctx   context.Context
+		gtin  string
+		other supplement.UpdatableSupplement
 	}
-
-	if other.Flavor != nil {
-		supplement.Flavor = *other.Flavor
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr error
+		wantStore map[string]supplement.Supplement
+	}{
+		{
+			name: "not found",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Name: Ptr("updated name")},
+			},
+			wantErr: supplement.ErrNotFound,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "update name",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Name: "name"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Name: Ptr("updated name")},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Name: "updated name"},
+			},
+		},
+		{
+			name: "update brand",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Brand: "description"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Brand: Ptr("updated brand")},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Brand: "updated brand"},
+			},
+		},
+		{
+			name: "update flavor",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Flavor: "flavor"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Flavor: Ptr("updated flavor")},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Flavor: "updated flavor"},
+			},
+		},
+		{
+			name: "update carbohydrates",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Carbohydrates: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Carbohydrates: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Carbohydrates: 2.0},
+			},
+		},
+		{
+			name: "update electrolytes",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Electrolytes: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Electrolytes: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Electrolytes: 2.0},
+			},
+		},
+		{
+			name: "update maltodextrose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Maltodextrose: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Maltodextrose: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Maltodextrose: 2.0},
+			},
+		},
+		{
+			name: "update fructose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Fructose: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Fructose: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Fructose: 2.0},
+			},
+		},
+		{
+			name: "update caffeine",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Caffeine: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Caffeine: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Caffeine: 2.0},
+			},
+		},
+		{
+			name: "update sodium",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Sodium: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Sodium: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Sodium: 2.0},
+			},
+		},
+		{
+			name: "update protein",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123", Protein: 1.0},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{Protein: Ptr(float32(2.0))},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {Gtin: "1234567890123", Protein: 2.0},
+			},
+		},
+		{
+			name: "update whole supplement",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin: "1234567890123",
+						Name: "name",
+						Brand: "brand",
+						Flavor: "flavor",
+						Carbohydrates: 1.0,
+						Electrolytes: 1.0,
+						Maltodextrose: 1.0,
+						Fructose: 1.0,
+						Caffeine: 1.0,
+						Sodium: 1.0,
+						Protein: 1.0,
+					},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+				other: supplement.UpdatableSupplement{
+					Name: Ptr("updated name"),
+					Brand: Ptr("updated brand"),
+					Flavor: Ptr("updated flavor"),
+					Carbohydrates: Ptr(float32(2.0)),
+					Electrolytes: Ptr(float32(2.0)),
+					Maltodextrose: Ptr(float32(2.0)),
+					Fructose: Ptr(float32(2.0)),
+					Caffeine: Ptr(float32(2.0)),
+					Sodium: Ptr(float32(2.0)),
+					Protein: Ptr(float32(2.0)),
+				},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin: "1234567890123",
+					Name: "updated name",
+					Brand: "updated brand",
+					Flavor: "updated flavor",
+					Carbohydrates: 2.0,
+					Electrolytes: 2.0,
+					Maltodextrose: 2.0,
+					Fructose: 2.0,
+					Caffeine: 2.0,
+					Sodium: 2.0,
+					Protein: 2.0,
+				},
+			},
+		},
 	}
-
-	if other.Carbohydrates != nil {
-		supplement.Carbohydrates = *other.Carbohydrates
-	}
-
-	if other.Electrolytes != nil {
-		supplement.Electrolytes = *other.Electrolytes
-	}
-
-	if other.Maltodextrose != nil {
-		supplement.Maltodextrose = *other.Maltodextrose
-	}
-
-	if other.Fructose != nil {
-		supplement.Fructose = *other.Fructose
-	}
-
-	if other.Caffeine != nil {
-		supplement.Caffeine = *other.Caffeine
-	}
-
-	if other.Sodium != nil {
-		supplement.Sodium = *other.Sodium
-	}
-
-	if other.Protein != nil {
-		supplement.Protein = *other.Protein
-	}
-
-	return supplement
-}
-
-func newRandomUpdatableSupplement() *supplement.UpdatableSupplement {
-	var name *string
-	var brand *string
-	var flavor *string
-	var carbohydrates *float32
-	var electrolytes *float32
-	var maltodextrose *float32
-	var fructose *float32
-	var caffeine *float32
-	var sodium *float32
-	var protein *float32
-
-	if gofakeit.Bool() {
-		n := gofakeit.Name()
-		name = &n
-	}
-
-	if gofakeit.Bool() {
-		b := gofakeit.Name()
-		brand = &b
-	}
-
-	if gofakeit.Bool() {
-		f := gofakeit.Word()
-		flavor = &f
-	}
-
-	if gofakeit.Bool() {
-		c := gofakeit.Float32Range(0, 100)
-		carbohydrates = &c
-	}
-
-	if gofakeit.Bool() {
-		e := gofakeit.Float32Range(0, 100)
-		electrolytes = &e
-	}
-
-	if gofakeit.Bool() {
-		m := gofakeit.Float32Range(0, 100)
-		maltodextrose = &m
-	}
-
-	if gofakeit.Bool() {
-		f := gofakeit.Float32Range(0, 100)
-		fructose = &f
-	}
-
-	if gofakeit.Bool() {
-		c := gofakeit.Float32Range(0, 100)
-		caffeine = &c
-	}
-
-	if gofakeit.Bool() {
-		s := gofakeit.Float32Range(0, 100)
-		sodium = &s
-	}
-
-	if gofakeit.Bool() {
-		p := gofakeit.Float32Range(0, 100)
-		protein = &p
-	}
-
-	return &supplement.UpdatableSupplement{
-		Name:          name,
-		Brand:         brand,
-		Flavor:        flavor,
-		Carbohydrates: carbohydrates,
-		Electrolytes:  electrolytes,
-		Maltodextrose: maltodextrose,
-		Fructose:      fructose,
-		Caffeine:      caffeine,
-		Sodium:        sodium,
-		Protein:       protein,
-	}
-}
-
-func TestCreate_NonExisting(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	randomSupplement := newRandomSupplement()
-
-	err := service.Create(context.TODO(), *randomSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	if len(repository.createCalls) != 1 {
-		t.Errorf("expected Create to be called just once; called: %d", len(repository.createCalls))
-	}
-
-	lastCreatedSupplement := repository.createCalls[0]
-
-	if lastCreatedSupplement != *randomSupplement {
-		t.Errorf("expected %v; got %v", randomSupplement, lastCreatedSupplement)
-	}
-}
-
-func TestCreate_Existing(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	randomSupplement := newRandomSupplement()
-
-	err := repository.Create(context.TODO(), *randomSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	err = service.Create(context.TODO(), *randomSupplement)
-
-	if !errors.Is(err, supplement.ErrAlreadyExists) {
-		t.Errorf("expected err to be ErrAlreadyExists; got: %s", err)
-	}
-
-	if len(repository.createCalls) != 1 {
-		t.Errorf("expected Create to be called just once; called: %d", len(repository.createCalls))
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != randomSupplement.Gtin {
-		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
-	}
-}
-
-func TestFindByGtin_NonExisting(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	gtin := gofakeit.DigitN(13)
-
-	_, err := service.FindByGtin(context.TODO(), gtin)
-
-	if !errors.Is(err, supplement.ErrNotFound) {
-		t.Errorf("expected err to be ErrNotFound; got: %s", err)
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != gtin {
-		t.Errorf("expected %s; got %s", gtin, lastFoundGtin)
-	}
-}
-
-func TestFindByGtin_Existing(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	randomSupplement := newRandomSupplement()
-
-	err := repository.Create(context.TODO(), *randomSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	foundSupplement, err := service.FindByGtin(context.TODO(), randomSupplement.Gtin)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	if !cmp.Equal(randomSupplement, foundSupplement) {
-		t.Errorf("expected %v; got %v", randomSupplement, foundSupplement)
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != randomSupplement.Gtin {
-		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
-	}
-}
-
-func TestDelete_NonExisting(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	gtin := gofakeit.DigitN(13)
-
-	err := service.Delete(context.TODO(), gtin)
-
-	if !errors.Is(err, supplement.ErrNotFound) {
-		t.Errorf("expected err to be ErrNotFound; got: %s", err)
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != gtin {
-		t.Errorf("expected %s; got %s", gtin, lastFoundGtin)
-	}
-}
-
-func TestDelete_Existing(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	randomSupplement := newRandomSupplement()
-
-	err := repository.Create(context.TODO(), *randomSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	err = service.Delete(context.TODO(), randomSupplement.Gtin)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != randomSupplement.Gtin {
-		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
-	}
-
-	if len(repository.deleteCalls) != 1 {
-		t.Errorf("expected Delete to be called just once; called: %d", len(repository.deleteCalls))
-	}
-
-	lastDeleted := repository.deleteCalls[0]
-
-	if !cmp.Equal(lastDeleted, *randomSupplement) {
-		t.Errorf("expected %v; got %v", randomSupplement, lastDeleted)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := supplement.NewSupplementService(tt.fields.repository)
+			if err := service.Update(tt.args.ctx, tt.args.gtin, tt.args.other); !errors.Is(err, tt.wantErr) {
+				t.Errorf("SupplementService.Update() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if diff := cmp.Diff(tt.fields.repository.(*stubSupplementRepository).store, tt.wantStore); diff != "" {
+				t.Errorf("SupplementService.Update() store mismatch (-got +want):\n%s", diff)
+			}
+		})
 	}
 }
 
-func TestUpdate_NonExisting(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	gtin := gofakeit.DigitN(13)
-	updatableSupplement := newRandomUpdatableSupplement()
-
-	err := service.Update(context.TODO(), gtin, *updatableSupplement)
-
-	if !errors.Is(err, supplement.ErrNotFound) {
-		t.Errorf("expected err to be ErrNotFound; got: %s", err)
+func TestSupplementService_Delete(t *testing.T) {
+	t.Parallel()
+	type fields struct {
+		repository supplement.SupplementRepository
 	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
+	type args struct {
+		ctx  context.Context
+		gtin string
 	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != gtin {
-		t.Errorf("expected %s; got %s", gtin, lastFoundGtin)
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr error
+		wantStore map[string]supplement.Supplement
+	}{
+		{
+			name: "not found",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+			},
+			wantErr: supplement.ErrNotFound,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "success",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {Gtin: "1234567890123"},
+				}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				gtin: "1234567890123",
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{},
+		},
 	}
-}
-
-func TestUpdate_Existing(t *testing.T) {
-	repository := newMockSupplementRepository()
-	service := supplement.NewSupplementService(repository)
-	randomSupplement := newRandomSupplement()
-
-	err := repository.Create(context.TODO(), *randomSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	updatableSupplement := newRandomUpdatableSupplement()
-
-	err = service.Update(context.TODO(), randomSupplement.Gtin, *updatableSupplement)
-
-	if err != nil {
-		t.Errorf("expected err to be nil; got: %s", err)
-	}
-
-	if len(repository.findByGtinCalls) != 1 {
-		t.Errorf("expected FindByGtin to be called just once; called: %d", len(repository.findByGtinCalls))
-	}
-
-	lastFoundGtin := repository.findByGtinCalls[0]
-
-	if lastFoundGtin != randomSupplement.Gtin {
-		t.Errorf("expected %s; got %s", randomSupplement.Gtin, lastFoundGtin)
-	}
-
-	if len(repository.updateCalls) != 1 {
-		t.Errorf("expected Update to be called just once; called: %d", len(repository.updateCalls))
-	}
-
-	lastUpdated := repository.updateCalls[0]
-	expectedUpdated := updateSupplement(*randomSupplement, *updatableSupplement)
-
-	if !cmp.Equal(lastUpdated, expectedUpdated) {
-		t.Errorf("expected %v; got %v", expectedUpdated, lastUpdated)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := supplement.NewSupplementService(tt.fields.repository)
+			if err := service.Delete(tt.args.ctx, tt.args.gtin); !errors.Is(err, tt.wantErr) {
+				t.Errorf("SupplementService.Delete() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if diff := cmp.Diff(tt.fields.repository.(*stubSupplementRepository).store, tt.wantStore); diff != "" {
+				t.Errorf("SupplementService.Delete() store mismatch (-got +want):\n%s", diff)
+			}
+		})
 	}
 }
