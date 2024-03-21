@@ -76,3 +76,8 @@ func (service *SupplementService) Update(ctx context.Context, gtin string, other
 
 	return service.repository.Update(ctx, updated)
 }
+
+// TODO: Add pagination, sorting, and filtering
+func (service *SupplementService) ListAll(ctx context.Context) ([]Supplement, error) {
+	return service.repository.ListAll(ctx)
+}

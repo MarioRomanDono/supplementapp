@@ -41,3 +41,17 @@ func (r *MongoDBSupplementRepository) Delete(ctx context.Context, supplement Sup
 	_, err := r.collection.DeleteOne(ctx, bson.D{{Key: "gtin", Value: supplement.Gtin}})
 	return err
 }
+
+func (r *MongoDBSupplementRepository) ListAll(ctx context.Context) ([]Supplement, error) {
+	cursor, err := r.collection.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+
+	supplements := []Supplement{}
+	if err := cursor.All(ctx, &supplements); err != nil {
+		return nil, err
+	}
+
+	return supplements, nil
+}

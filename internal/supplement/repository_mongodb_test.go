@@ -8,31 +8,32 @@ import (
 	"github.com/marioromandono/supplementapp/internal/supplement"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func setup(t *testing.T, ctx context.Context) (*mongo.Collection, *mongo.Client) {
+func setup(t *testing.T, ctx context.Context) (*mongo.Collection) {
 	t.Helper()
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		t.Fatalf("could not load .env file: %v", err)
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGODB_URI")))
+	uri := os.Getenv("MONGODB_URI")
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 
 	if err != nil {
 		t.Fatalf("could not connect to mongodb: %v", err)
 	}
 
-	return client.Database(os.Getenv("MONGODB_DB")).Collection("supplements"), client
-}
+	dbName := os.Getenv("MONGODB_DB")
+	collectionName := "supplements"
 
-func teardown(t *testing.T, ctx context.Context, client *mongo.Client) {
 	t.Cleanup(func() {
-		err := client.Database(os.Getenv("MONGODB_DB")).Collection("supplements").Drop(ctx)
+		err := client.Database(dbName).Collection(collectionName).Drop(ctx)
 		if err != nil {
 			t.Fatalf("could not drop collection: %v", err)
 		}
@@ -42,6 +43,8 @@ func teardown(t *testing.T, ctx context.Context, client *mongo.Client) {
 			t.Fatalf("could not disconnect from mongodb: %v", err)
 		}
 	})
+
+	return client.Database(dbName).Collection(collectionName)
 }
 
 func TestMongoDBSupplementRepository_Create(t *testing.T) {
@@ -51,8 +54,7 @@ func TestMongoDBSupplementRepository_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setup(t, context)
-		teardown(t, context, client)
+		collection := setup(t, context)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := supplement.Supplement{
@@ -90,8 +92,7 @@ func TestMongoDBSupplementRepository_FindByGtin(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setup(t, context)
-		teardown(t, context, client)
+		collection := setup(t, context)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		got, err := repo.FindByGtin(context, "1234567890123")
@@ -107,8 +108,7 @@ func TestMongoDBSupplementRepository_FindByGtin(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setup(t, context)
-		teardown(t, context, client)
+		collection := setup(t, context)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := &supplement.Supplement{
@@ -145,8 +145,7 @@ func TestMongoDBSupplementRepository_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setup(t, context)
-		teardown(t, context, client)
+		collection := setup(t, context)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := supplement.Supplement{
@@ -187,8 +186,7 @@ func TestMongoDBSupplementRepository_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		context := context.Background()
-		collection, client := setup(t, context)
-		teardown(t, context, client)
+		collection := setup(t, context)
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		s := supplement.Supplement{
@@ -217,6 +215,77 @@ func TestMongoDBSupplementRepository_Delete(t *testing.T) {
 		
 		if got != nil {
 			t.Errorf("MongoDBSupplementRepository.Delete() got = %v, want nil", got)
+		}
+	})
+}
+
+func TestMongoDBSupplementRepository_ListAll(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("with no supplements", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+
+		repo := supplement.NewMongoDBSupplementRepository(collection)
+		got, err := repo.ListAll(context)
+		want := []supplement.Supplement{}
+
+		if err != nil {
+			t.Errorf("MongoDBSupplementRepository.ListAll() error = %v, want nil", err)
+		}
+
+		if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
+			t.Errorf("MongoDBSupplementRepository.ListAll() mismatch (-got +want):\n%s", diff)
+		}
+	})
+
+	t.Run("with supplements", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+
+		repo := supplement.NewMongoDBSupplementRepository(collection)
+		want := []supplement.Supplement{
+			{
+				Gtin: "1234567890123",
+				Name: "name",
+				Brand: "brand",
+				Flavor: "flavor",
+				Carbohydrates: 1.0,
+				Electrolytes: 1.0,
+				Maltodextrose: 1.0,
+				Fructose: 1.0,
+				Caffeine: 1.0,
+				Sodium: 1.0,
+				Protein: 1.0,
+			},
+			{
+				Gtin: "1234567890124",
+				Name: "name",
+				Brand: "brand",
+				Flavor: "flavor",
+				Carbohydrates: 1.0,
+				Electrolytes: 1.0,
+				Maltodextrose: 1.0,
+				Fructose: 1.0,
+				Caffeine: 1.0,
+				Sodium: 1.0,
+				Protein: 1.0,
+			},
+		}
+		for _, s := range want {
+			collection.InsertOne(context, s)
+		}
+
+		got, err := repo.ListAll(context)
+
+		if err != nil {
+			t.Errorf("MongoDBSupplementRepository.ListAll() error = %v, want nil", err)
+		}
+
+		if diff := cmp.Diff(got, want, cmpopts.EquateEmpty()); diff != "" {
+			t.Errorf("MongoDBSupplementRepository.ListAll() mismatch (-got +want):\n%s", diff)
 		}
 	})
 }

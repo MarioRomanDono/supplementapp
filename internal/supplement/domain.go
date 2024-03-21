@@ -36,6 +36,7 @@ type SupplementRepository interface {
 	Create(ctx context.Context, supplement Supplement) error
 	Update(ctx context.Context, supplement Supplement) error
 	Delete(ctx context.Context, supplement Supplement) error
+	ListAll(ctx context.Context) ([]Supplement, error)
 }
 
 func (supplement *Supplement) update(other UpdatableSupplement) Supplement {
