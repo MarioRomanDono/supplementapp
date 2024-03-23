@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
-		"net/http"
+	"io"
+	"net/http"
 
 	"github.com/marioromandono/supplementapp/internal/supplement"
 )
@@ -41,9 +42,15 @@ func getSupplementHandler(service *supplement.SupplementService) http.HandlerFun
 func createSupplementHandler(service *supplement.SupplementService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var supplement supplement.Supplement
-		json.NewDecoder(r.Body).Decode(&supplement)
+		err := json.NewDecoder(r.Body).Decode(&supplement)
+		defer r.Body.Close()
 
-		err := service.Create(r.Context(), supplement)
+		if err != nil {
+			handleError(err, w)
+			return
+		}
+
+		err = service.Create(r.Context(), supplement)
 
 		if err != nil {
 			handleError(err, w)
@@ -60,9 +67,15 @@ func updateSupplementHandler(service *supplement.SupplementService) http.Handler
 		gtin := r.PathValue("gtin")
 
 		var supplement supplement.UpdatableSupplement
-		json.NewDecoder(r.Body).Decode(&supplement)
+		err := json.NewDecoder(r.Body).Decode(&supplement)
+		defer r.Body.Close()
 
-		err := service.Update(r.Context(), gtin, supplement)
+		if err != nil {
+			handleError(err, w)
+			return
+		}
+
+		err = service.Update(r.Context(), gtin, supplement)
 
 		if err != nil {
 			handleError(err, w)
@@ -91,12 +104,26 @@ func deleteSupplementHandler(service *supplement.SupplementService) http.Handler
 func handleError(err error, w http.ResponseWriter) {
 	message := err.Error()
 	var code int
+
+	var syntaxErr *json.SyntaxError
+	var unmarshalTypeErr *json.UnmarshalTypeError
+	var invalidUnmarshalErr *json.InvalidUnmarshalError
+	var unsupportedTypeError *json.UnsupportedTypeError
+	var unsupportedValueErr *json.UnsupportedValueError
 	
 	switch {
 	case errors.Is(err, supplement.ErrNotFound):
 		code = http.StatusNotFound
 	case errors.Is(err, supplement.ErrAlreadyExists):
 		code = http.StatusConflict
+	case
+		errors.Is(err, io.EOF),
+		errors.As(err, &syntaxErr),
+		errors.As(err, &unmarshalTypeErr),
+		errors.As(err, &invalidUnmarshalErr),
+		errors.As(err, &unsupportedTypeError),
+		errors.As(err, &unsupportedValueErr):
+		code = http.StatusBadRequest		
 	default:
 		code = http.StatusInternalServerError
 	}

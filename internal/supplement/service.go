@@ -20,6 +20,8 @@ func NewSupplementService(repository SupplementRepository) *SupplementService {
 }
 
 func (service *SupplementService) Create(ctx context.Context, supplement Supplement) error {
+	fmt.Printf("Creating supplement: %+v\n", supplement)
+
 	existing, err := service.repository.FindByGtin(ctx, supplement.Gtin)
 
 	if err != nil {
