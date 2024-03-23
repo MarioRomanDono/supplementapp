@@ -27,7 +27,7 @@ func (service *SupplementService) Create(ctx context.Context, supplement Supplem
 	}
 
 	if existing != nil {
-		return fmt.Errorf("%v: %w", supplement, ErrAlreadyExists)
+		return fmt.Errorf("%s: %w", supplement.Gtin, ErrAlreadyExists)
 	}
 
 	return service.repository.Create(ctx, supplement)
