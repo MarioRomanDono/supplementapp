@@ -15,7 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func setup(t *testing.T, ctx context.Context) (*mongo.Collection) {
+func setup(t *testing.T, ctx context.Context) *mongo.Collection {
 	t.Helper()
 	err := godotenv.Load("../../.env")
 	if err != nil {
@@ -58,17 +58,17 @@ func TestMongoDBSupplementRepository_Create(t *testing.T) {
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := supplement.Supplement{
-			Gtin: "1234567890123",
-			Name: "name",
-			Brand: "brand",
-			Flavor: "flavor",
+			Gtin:          "1234567890123",
+			Name:          "name",
+			Brand:         "brand",
+			Flavor:        "flavor",
 			Carbohydrates: 1.0,
-			Electrolytes: 1.0,
+			Electrolytes:  1.0,
 			Maltodextrose: 1.0,
-			Fructose: 1.0,
-			Caffeine: 1.0,
-			Sodium: 1.0,
-			Protein: 1.0,
+			Fructose:      1.0,
+			Caffeine:      1.0,
+			Sodium:        1.0,
+			Protein:       1.0,
 		}
 		err := repo.Create(context, want)
 
@@ -78,7 +78,7 @@ func TestMongoDBSupplementRepository_Create(t *testing.T) {
 
 		var got supplement.Supplement
 		collection.FindOne(context, bson.D{{Key: "gtin", Value: want.Gtin}}).Decode(&got)
-		
+
 		if diff := cmp.Diff(got, want); diff != "" {
 			t.Errorf("MongoDBSupplementRepository.Create() mismatch (-got +want):\n%s", diff)
 		}
@@ -112,17 +112,17 @@ func TestMongoDBSupplementRepository_FindByGtin(t *testing.T) {
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := &supplement.Supplement{
-			Gtin: "1234567890123",
-			Name: "name",
-			Brand: "brand",
-			Flavor: "flavor",
+			Gtin:          "1234567890123",
+			Name:          "name",
+			Brand:         "brand",
+			Flavor:        "flavor",
 			Carbohydrates: 1.0,
-			Electrolytes: 1.0,
+			Electrolytes:  1.0,
 			Maltodextrose: 1.0,
-			Fructose: 1.0,
-			Caffeine: 1.0,
-			Sodium: 1.0,
-			Protein: 1.0,
+			Fructose:      1.0,
+			Caffeine:      1.0,
+			Sodium:        1.0,
+			Protein:       1.0,
 		}
 		collection.InsertOne(context, want)
 
@@ -149,17 +149,17 @@ func TestMongoDBSupplementRepository_Update(t *testing.T) {
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := supplement.Supplement{
-			Gtin: "1234567890123",
-			Name: "name",
-			Brand: "brand",
-			Flavor: "flavor",
+			Gtin:          "1234567890123",
+			Name:          "name",
+			Brand:         "brand",
+			Flavor:        "flavor",
 			Carbohydrates: 1.0,
-			Electrolytes: 1.0,
+			Electrolytes:  1.0,
 			Maltodextrose: 1.0,
-			Fructose: 1.0,
-			Caffeine: 1.0,
-			Sodium: 1.0,
-			Protein: 1.0,
+			Fructose:      1.0,
+			Caffeine:      1.0,
+			Sodium:        1.0,
+			Protein:       1.0,
 		}
 		collection.InsertOne(context, want)
 
@@ -172,7 +172,7 @@ func TestMongoDBSupplementRepository_Update(t *testing.T) {
 
 		var got supplement.Supplement
 		collection.FindOne(context, bson.D{{Key: "gtin", Value: want.Gtin}}).Decode(&got)
-		
+
 		if diff := cmp.Diff(got, want); diff != "" {
 			t.Errorf("MongoDBSupplementRepository.Update() mismatch (-got +want):\n%s", diff)
 		}
@@ -190,17 +190,17 @@ func TestMongoDBSupplementRepository_Delete(t *testing.T) {
 
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		s := supplement.Supplement{
-			Gtin: "1234567890123",
-			Name: "name",
-			Brand: "brand",
-			Flavor: "flavor",
+			Gtin:          "1234567890123",
+			Name:          "name",
+			Brand:         "brand",
+			Flavor:        "flavor",
 			Carbohydrates: 1.0,
-			Electrolytes: 1.0,
+			Electrolytes:  1.0,
 			Maltodextrose: 1.0,
-			Fructose: 1.0,
-			Caffeine: 1.0,
-			Sodium: 1.0,
-			Protein: 1.0,
+			Fructose:      1.0,
+			Caffeine:      1.0,
+			Sodium:        1.0,
+			Protein:       1.0,
 		}
 		collection.InsertOne(context, s)
 
@@ -212,7 +212,7 @@ func TestMongoDBSupplementRepository_Delete(t *testing.T) {
 
 		var got *supplement.Supplement
 		collection.FindOne(context, bson.D{{Key: "gtin", Value: s.Gtin}}).Decode(&got)
-		
+
 		if got != nil {
 			t.Errorf("MongoDBSupplementRepository.Delete() got = %v, want nil", got)
 		}
@@ -248,30 +248,30 @@ func TestMongoDBSupplementRepository_ListAll(t *testing.T) {
 		repo := supplement.NewMongoDBSupplementRepository(collection)
 		want := []supplement.Supplement{
 			{
-				Gtin: "1234567890123",
-				Name: "name",
-				Brand: "brand",
-				Flavor: "flavor",
+				Gtin:          "1234567890123",
+				Name:          "name",
+				Brand:         "brand",
+				Flavor:        "flavor",
 				Carbohydrates: 1.0,
-				Electrolytes: 1.0,
+				Electrolytes:  1.0,
 				Maltodextrose: 1.0,
-				Fructose: 1.0,
-				Caffeine: 1.0,
-				Sodium: 1.0,
-				Protein: 1.0,
+				Fructose:      1.0,
+				Caffeine:      1.0,
+				Sodium:        1.0,
+				Protein:       1.0,
 			},
 			{
-				Gtin: "1234567890124",
-				Name: "name",
-				Brand: "brand",
-				Flavor: "flavor",
+				Gtin:          "1234567890124",
+				Name:          "name",
+				Brand:         "brand",
+				Flavor:        "flavor",
 				Carbohydrates: 1.0,
-				Electrolytes: 1.0,
+				Electrolytes:  1.0,
 				Maltodextrose: 1.0,
-				Fructose: 1.0,
-				Caffeine: 1.0,
-				Sodium: 1.0,
-				Protein: 1.0,
+				Fructose:      1.0,
+				Caffeine:      1.0,
+				Sodium:        1.0,
+				Protein:       1.0,
 			},
 		}
 		for _, s := range want {

@@ -511,9 +511,9 @@ func TestSupplementService_ListAll(t *testing.T) {
 		ctx context.Context
 	}
 	tests := []struct {
-		name      string
-		fields    fields
-		args      
+		name   string
+		fields fields
+		args
 		want      []supplement.Supplement
 		wantErr   error
 		wantStore map[string]supplement.Supplement

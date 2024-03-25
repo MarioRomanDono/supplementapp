@@ -110,7 +110,7 @@ func handleError(err error, w http.ResponseWriter) {
 	var invalidUnmarshalErr *json.InvalidUnmarshalError
 	var unsupportedTypeError *json.UnsupportedTypeError
 	var unsupportedValueErr *json.UnsupportedValueError
-	
+
 	switch {
 	case errors.Is(err, supplement.ErrNotFound):
 		code = http.StatusNotFound
@@ -123,12 +123,12 @@ func handleError(err error, w http.ResponseWriter) {
 		errors.As(err, &invalidUnmarshalErr),
 		errors.As(err, &unsupportedTypeError),
 		errors.As(err, &unsupportedValueErr):
-		code = http.StatusBadRequest		
+		code = http.StatusBadRequest
 	default:
 		code = http.StatusInternalServerError
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(code)
-    json.NewEncoder(w).Encode(ErrorResponseBody{Code: code, Message: message})
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(ErrorResponseBody{Code: code, Message: message})
 }

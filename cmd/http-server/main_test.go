@@ -85,7 +85,7 @@ func TestCreateSupplement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-	
+
 	t.Run("without body", func(t *testing.T) {
 		context := context.Background()
 		collection := setup(t, context)
@@ -123,7 +123,7 @@ func TestCreateSupplement(t *testing.T) {
 		})
 		wantBody := string(wantBodyJSON) + "\n"
 
-		server.ServeHTTP(response, request)	
+		server.ServeHTTP(response, request)
 
 		assertStatus(t, response.Code, wantCode)
 		assertResponseBody(t, response.Body.String(), wantBody)
@@ -203,7 +203,7 @@ func TestUpdateSupplement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-	
+
 	t.Run("without body", func(t *testing.T) {
 		context := context.Background()
 		collection := setup(t, context)
@@ -313,7 +313,7 @@ func TestDeleteSupplement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-	
+
 	t.Run("not found", func(t *testing.T) {
 		context := context.Background()
 		collection := setup(t, context)
