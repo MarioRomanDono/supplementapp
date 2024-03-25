@@ -16,6 +16,7 @@ type ErrorResponseBody struct {
 
 func addRoutes(mux *http.ServeMux, service *supplement.SupplementService) {
 	mux.HandleFunc("GET /supplement/{gtin}", getSupplementHandler(service))
+	mux.HandleFunc("GET /supplement", listAllSupplementsHandler(service))
 	mux.HandleFunc("POST /supplement", createSupplementHandler(service))
 	mux.HandleFunc("PUT /supplement/{gtin}", updateSupplementHandler(service))
 	mux.HandleFunc("PATCH /supplement/{gtin}", updateSupplementHandler(service))
@@ -36,6 +37,21 @@ func getSupplementHandler(service *supplement.SupplementService) http.HandlerFun
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(supplement)
+	}
+}
+
+func listAllSupplementsHandler(service *supplement.SupplementService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		supplements, err := service.ListAll(r.Context())
+
+		if err != nil {
+			handleError(err, w)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(supplements)
 	}
 }
 

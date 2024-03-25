@@ -369,6 +369,81 @@ func TestDeleteSupplement(t *testing.T) {
 	})
 }
 
+func TestListAllSupplements(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	t.Run("empty", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+
+		request := httptest.NewRequest("GET", "/supplement", nil)
+		response := httptest.NewRecorder()
+		wantCode := http.StatusOK
+		wantBodyJSON, _ := json.Marshal([]supplement.Supplement{})
+		wantBody := string(wantBodyJSON) + "\n"
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response.Code, wantCode)
+		assertResponseBody(t, response.Body.String(), wantBody)
+	})
+
+	t.Run("not empty", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+
+		want := []supplement.Supplement{
+			{
+				Gtin:          "1234567890123",
+				Name:          "Test",
+				Brand:         "Test",
+				Flavor:        "Test",
+				Carbohydrates: 1.0,
+				Electrolytes:  1.0,
+				Maltodextrose: 1.0,
+				Fructose:      1.0,
+				Caffeine:      1.0,
+				Sodium:        1.0,
+				Protein:       1.0,
+			},
+			{
+				Gtin:          "1234567890124",
+				Name:          "Test",
+				Brand:         "Test",
+				Flavor:        "Test",
+				Carbohydrates: 1.0,
+				Electrolytes:  1.0,
+				Maltodextrose: 1.0,
+				Fructose:      1.0,
+				Caffeine:      1.0,
+				Sodium:        1.0,
+				Protein:       1.0,
+			},
+		}
+		for _, s := range want {
+			_, err := collection.InsertOne(context, s)
+			if err != nil {
+				t.Fatalf("could not insert document: %v", err)
+			}
+		}
+
+		request := httptest.NewRequest("GET", "/supplement", nil)
+		response := httptest.NewRecorder()
+		wantCode := http.StatusOK
+		wantBodyJSON, _ := json.Marshal(want)
+		wantBody := string(wantBodyJSON) + "\n"
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response.Code, wantCode)
+		assertResponseBody(t, response.Body.String(), wantBody)
+	})
+}
+
 func setup(t *testing.T, ctx context.Context) *mongo.Collection {
 	t.Helper()
 	err := godotenv.Load("../../.env")
