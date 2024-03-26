@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("supplement not found")
-	ErrAlreadyExists = errors.New("supplement already exists")
+	ErrNotFound          = errors.New("supplement not found")
+	ErrAlreadyExists     = errors.New("supplement already exists")
+	ErrInvalidSupplement = errors.New("invalid supplement")
 )
 
 type SupplementService struct {
@@ -20,8 +21,6 @@ func NewSupplementService(repository SupplementRepository) *SupplementService {
 }
 
 func (service *SupplementService) Create(ctx context.Context, supplement Supplement) error {
-	fmt.Printf("Creating supplement: %+v\n", supplement)
-
 	existing, err := service.repository.FindByGtin(ctx, supplement.Gtin)
 
 	if err != nil {
@@ -30,6 +29,10 @@ func (service *SupplementService) Create(ctx context.Context, supplement Supplem
 
 	if existing != nil {
 		return fmt.Errorf("%s: %w", supplement.Gtin, ErrAlreadyExists)
+	}
+
+	if err := supplement.validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidSupplement, err)
 	}
 
 	return service.repository.Create(ctx, supplement)
@@ -75,6 +78,10 @@ func (service *SupplementService) Update(ctx context.Context, gtin string, other
 	}
 
 	updated := supplement.update(other)
+
+	if err := updated.validate(); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidSupplement, err)
+	}
 
 	return service.repository.Update(ctx, updated)
 }

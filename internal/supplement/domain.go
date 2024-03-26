@@ -2,6 +2,9 @@ package supplement
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 )
 
 type Supplement struct {
@@ -39,46 +42,100 @@ type SupplementRepository interface {
 	ListAll(ctx context.Context) ([]Supplement, error)
 }
 
-func (supplement *Supplement) update(other UpdatableSupplement) Supplement {
+func (s *Supplement) validate() error {
+	var errors []string
+
+	if !regexp.MustCompile(`^\d{13}$`).MatchString(s.Gtin) {
+		errors = append(errors, fmt.Sprintf("gtin %q is invalid, it must be a 13-digit number", s.Gtin))
+	}
+
+	if s.Name == "" {
+		errors = append(errors, fmt.Sprintf("name %q is invalid, it must not be empty", s.Name))
+	}
+
+	if s.Brand == "" {
+		errors = append(errors, fmt.Sprintf("brand %q is invalid, it must not be empty", s.Brand))
+	}
+
+	if s.Flavor == "" {
+		errors = append(errors, fmt.Sprintf("flavor %q is invalid, it must not be empty", s.Flavor))
+	}
+
+	if s.Carbohydrates < 0 {
+		errors = append(errors, fmt.Sprintf("carbohydrates %f is invalid, it must be greater or equal to zero", s.Carbohydrates))
+	}
+
+	if s.Electrolytes < 0 {
+		errors = append(errors, fmt.Sprintf("electrolytes %f is invalid, it must be greater or equal to zero", s.Electrolytes))
+	}
+
+	if s.Maltodextrose < 0 {
+		errors = append(errors, fmt.Sprintf("maltodextrose %f is invalid, it must be greater or equal to zero", s.Maltodextrose))
+	}
+
+	if s.Fructose < 0 {
+		errors = append(errors, fmt.Sprintf("fructose %f is invalid, it must be greater or equal to zero", s.Fructose))
+	}
+
+	if s.Caffeine < 0 {
+		errors = append(errors, fmt.Sprintf("caffeine %f is invalid, it must be greater or equal to zero", s.Caffeine))
+	}
+
+	if s.Sodium < 0 {
+		errors = append(errors, fmt.Sprintf("sodium %f is invalid, it must be greater or equal to zero", s.Sodium))
+	}
+
+	if s.Protein < 0 {
+		errors = append(errors, fmt.Sprintf("protein %f is invalid, it must be greater or equal to zero", s.Protein))
+	}
+
+	if len(errors) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf(strings.Join(errors, "; "))
+}
+
+func (s *Supplement) update(other UpdatableSupplement) Supplement {
 	if other.Name != nil {
-		supplement.Name = *other.Name
+		s.Name = *other.Name
 	}
 
 	if other.Brand != nil {
-		supplement.Brand = *other.Brand
+		s.Brand = *other.Brand
 	}
 
 	if other.Flavor != nil {
-		supplement.Flavor = *other.Flavor
+		s.Flavor = *other.Flavor
 	}
 
 	if other.Carbohydrates != nil {
-		supplement.Carbohydrates = *other.Carbohydrates
+		s.Carbohydrates = *other.Carbohydrates
 	}
 
 	if other.Electrolytes != nil {
-		supplement.Electrolytes = *other.Electrolytes
+		s.Electrolytes = *other.Electrolytes
 	}
 
 	if other.Maltodextrose != nil {
-		supplement.Maltodextrose = *other.Maltodextrose
+		s.Maltodextrose = *other.Maltodextrose
 	}
 
 	if other.Fructose != nil {
-		supplement.Fructose = *other.Fructose
+		s.Fructose = *other.Fructose
 	}
 
 	if other.Caffeine != nil {
-		supplement.Caffeine = *other.Caffeine
+		s.Caffeine = *other.Caffeine
 	}
 
 	if other.Sodium != nil {
-		supplement.Sodium = *other.Sodium
+		s.Sodium = *other.Sodium
 	}
 
 	if other.Protein != nil {
-		supplement.Protein = *other.Protein
+		s.Protein = *other.Protein
 	}
 
-	return *supplement
+	return *s
 }

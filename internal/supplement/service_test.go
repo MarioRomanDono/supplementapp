@@ -150,7 +150,31 @@ func TestSupplementService_Create(t *testing.T) {
 			},
 		},
 		{
-			name: "success",
+			name: "missing gtin",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx:        context.TODO(),
+				supplement: supplement.Supplement{},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid gtin",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx:        context.TODO(),
+				supplement: supplement.Supplement{Gtin: "1"},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "missing name",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
 			},
@@ -158,9 +182,226 @@ func TestSupplementService_Create(t *testing.T) {
 				ctx:        context.TODO(),
 				supplement: supplement.Supplement{Gtin: "1234567890123"},
 			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "missing brand",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin: "1234567890123",
+					Name: "name",
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "missing flavor",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:  "1234567890123",
+					Name:  "name",
+					Brand: "brand",
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid carbohydrates",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Carbohydrates: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid electrolytes",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:         "1234567890123",
+					Name:         "name",
+					Brand:        "brand",
+					Flavor:       "flavor",
+					Electrolytes: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid maltodextrose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Maltodextrose: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid fructose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:     "1234567890123",
+					Name:     "name",
+					Brand:    "brand",
+					Flavor:   "flavor",
+					Fructose: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid caffeine",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:     "1234567890123",
+					Name:     "name",
+					Brand:    "brand",
+					Flavor:   "flavor",
+					Caffeine: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid sodium",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+					Sodium: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "invalid protein",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:    "1234567890123",
+					Name:    "name",
+					Brand:   "brand",
+					Flavor:  "flavor",
+					Protein: -1.0,
+				},
+			},
+			wantErr:   supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{},
+		},
+		{
+			name: "with every nutrient set to zero",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123"},
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "with every nutrient set to a positive value",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{}},
+			},
+			args: args{
+				ctx: context.TODO(),
+				supplement: supplement.Supplement{
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Carbohydrates: 1.0,
+					Electrolytes:  1.0,
+					Maltodextrose: 1.0,
+					Fructose:      1.0,
+					Caffeine:      1.0,
+					Sodium:        1.0,
+					Protein:       1.0,
+				},
+			},
+			wantErr: nil,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Carbohydrates: 1.0,
+					Electrolytes:  1.0,
+					Maltodextrose: 1.0,
+					Fructose:      1.0,
+					Caffeine:      1.0,
+					Sodium:        1.0,
+					Protein:       1.0,
+				},
 			},
 		},
 	}
@@ -209,10 +450,42 @@ func TestSupplementService_Update(t *testing.T) {
 			wantStore: map[string]supplement.Supplement{},
 		},
 		{
-			name: "update name",
+			name: "invalid name",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Name: "name"},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Name: Ptr("")},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid name",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
 				}},
 			},
 			args: args{
@@ -222,14 +495,51 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Name: "updated name"},
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "updated name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
 			},
 		},
 		{
-			name: "update brand",
+			name: "invalid brand",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Brand: "description"},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Brand: Ptr("")},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid brand",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
 				}},
 			},
 			args: args{
@@ -239,14 +549,51 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Brand: "updated brand"},
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "updated brand",
+					Flavor: "flavor",
+				},
 			},
 		},
 		{
-			name: "update flavor",
+			name: "invalid flavor",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Flavor: "flavor"},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Flavor: Ptr("")},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid flavor",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
 				}},
 			},
 			args: args{
@@ -256,14 +603,52 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Flavor: "updated flavor"},
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "updated flavor",
+				},
 			},
 		},
 		{
-			name: "update carbohydrates",
+			name: "invalid carbohydrates",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Carbohydrates: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Carbohydrates: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid carbohydrates",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:          "1234567890123",
+						Name:          "name",
+						Brand:         "brand",
+						Flavor:        "flavor",
+						Carbohydrates: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -273,14 +658,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Carbohydrates: 2.0},
+				"1234567890123": {
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Carbohydrates: 2.0,
+				},
 			},
 		},
 		{
-			name: "update electrolytes",
+			name: "invalid electrolytes",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Electrolytes: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Electrolytes: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid electrolytes",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:         "1234567890123",
+						Name:         "name",
+						Brand:        "brand",
+						Flavor:       "flavor",
+						Electrolytes: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -290,14 +714,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Electrolytes: 2.0},
+				"1234567890123": {
+					Gtin:         "1234567890123",
+					Name:         "name",
+					Brand:        "brand",
+					Flavor:       "flavor",
+					Electrolytes: 2.0,
+				},
 			},
 		},
 		{
-			name: "update maltodextrose",
+			name: "invalid maltodextrose",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Maltodextrose: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Maltodextrose: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid maltodextrose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:          "1234567890123",
+						Name:          "name",
+						Brand:         "brand",
+						Flavor:        "flavor",
+						Maltodextrose: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -307,14 +770,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Maltodextrose: 2.0},
+				"1234567890123": {
+					Gtin:          "1234567890123",
+					Name:          "name",
+					Brand:         "brand",
+					Flavor:        "flavor",
+					Maltodextrose: 2.0,
+				},
 			},
 		},
 		{
-			name: "update fructose",
+			name: "invalid fructose",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Fructose: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Fructose: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid fructose",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:     "1234567890123",
+						Name:     "name",
+						Brand:    "brand",
+						Flavor:   "flavor",
+						Fructose: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -324,14 +826,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Fructose: 2.0},
+				"1234567890123": {
+					Gtin:     "1234567890123",
+					Name:     "name",
+					Brand:    "brand",
+					Flavor:   "flavor",
+					Fructose: 2.0,
+				},
 			},
 		},
 		{
-			name: "update caffeine",
+			name: "invalid caffeine",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Caffeine: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Caffeine: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid caffeine",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:     "1234567890123",
+						Name:     "name",
+						Brand:    "brand",
+						Flavor:   "flavor",
+						Caffeine: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -341,14 +882,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Caffeine: 2.0},
+				"1234567890123": {
+					Gtin:     "1234567890123",
+					Name:     "name",
+					Brand:    "brand",
+					Flavor:   "flavor",
+					Caffeine: 2.0,
+				},
 			},
 		},
 		{
-			name: "update sodium",
+			name: "invalid sodium",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Sodium: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Sodium: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid sodium",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+						Sodium: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -358,14 +938,53 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Sodium: 2.0},
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+					Sodium: 2.0,
+				},
 			},
 		},
 		{
-			name: "update protein",
+			name: "invalid protein",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
-					"1234567890123": {Gtin: "1234567890123", Protein: 1.0},
+					"1234567890123": {
+						Gtin:   "1234567890123",
+						Name:   "name",
+						Brand:  "brand",
+						Flavor: "flavor",
+					},
+				}},
+			},
+			args: args{
+				ctx:   context.TODO(),
+				gtin:  "1234567890123",
+				other: supplement.UpdatableSupplement{Protein: Ptr(float32(-1.0))},
+			},
+			wantErr: supplement.ErrInvalidSupplement,
+			wantStore: map[string]supplement.Supplement{
+				"1234567890123": {
+					Gtin:   "1234567890123",
+					Name:   "name",
+					Brand:  "brand",
+					Flavor: "flavor",
+				},
+			},
+		},
+		{
+			name: "valid protein",
+			fields: fields{
+				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
+					"1234567890123": {
+						Gtin:    "1234567890123",
+						Name:    "name",
+						Brand:   "brand",
+						Flavor:  "flavor",
+						Protein: 1.0,
+					},
 				}},
 			},
 			args: args{
@@ -375,11 +994,17 @@ func TestSupplementService_Update(t *testing.T) {
 			},
 			wantErr: nil,
 			wantStore: map[string]supplement.Supplement{
-				"1234567890123": {Gtin: "1234567890123", Protein: 2.0},
+				"1234567890123": {
+					Gtin:    "1234567890123",
+					Name:    "name",
+					Brand:   "brand",
+					Flavor:  "flavor",
+					Protein: 2.0,
+				},
 			},
 		},
 		{
-			name: "update whole supplement",
+			name: "valid supplement",
 			fields: fields{
 				repository: &stubSupplementRepository{store: map[string]supplement.Supplement{
 					"1234567890123": {
