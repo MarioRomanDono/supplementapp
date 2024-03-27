@@ -138,7 +138,8 @@ func handleError(err error, w http.ResponseWriter) {
 		errors.As(err, &unmarshalTypeErr),
 		errors.As(err, &invalidUnmarshalErr),
 		errors.As(err, &unsupportedTypeError),
-		errors.As(err, &unsupportedValueErr):
+		errors.As(err, &unsupportedValueErr),
+		errors.Is(err, supplement.ErrInvalidSupplement):
 		code = http.StatusBadRequest
 	default:
 		code = http.StatusInternalServerError

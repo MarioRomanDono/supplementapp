@@ -129,6 +129,34 @@ func TestCreateSupplement(t *testing.T) {
 		assertResponseBody(t, response.Body.String(), wantBody)
 	})
 
+	t.Run("invalid supplement", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+
+		s := &supplement.Supplement{
+			Gtin:          "1234567890123",
+			Name:          "name",
+			Brand:         "brand",
+			Flavor:        "flavor",
+			Carbohydrates: -1.0,
+		}
+		body, _ := json.Marshal(s)
+		request := httptest.NewRequest("POST", "/supplement", bytes.NewBuffer(body))
+		response := httptest.NewRecorder()
+		wantCode := http.StatusBadRequest
+		wantBodyJSON, _ := json.Marshal(&main.ErrorResponseBody{
+			Code:    wantCode,
+			Message: fmt.Sprintf("%s: carbohydrates %f is invalid, it must be greater or equal to zero", supplement.ErrInvalidSupplement, s.Carbohydrates),
+		})
+		wantBody := string(wantBodyJSON) + "\n"
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response.Code, wantCode)
+		assertResponseBody(t, response.Body.String(), wantBody)
+	})
+
 	t.Run("already exists", func(t *testing.T) {
 		context := context.Background()
 		collection := setup(t, context)
@@ -264,6 +292,46 @@ func TestUpdateSupplement(t *testing.T) {
 		wantBodyJSON, _ := json.Marshal(&main.ErrorResponseBody{
 			Code:    wantCode,
 			Message: fmt.Sprintf("%s: %s", gtin, supplement.ErrNotFound),
+		})
+		wantBody := string(wantBodyJSON) + "\n"
+
+		server.ServeHTTP(response, request)
+
+		assertStatus(t, response.Code, wantCode)
+		assertResponseBody(t, response.Body.String(), wantBody)
+	})
+
+	t.Run("invalid updatable supplement", func(t *testing.T) {
+		context := context.Background()
+		collection := setup(t, context)
+		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+
+		s := &supplement.Supplement{
+			Gtin:          "1234567890123",
+			Name:          "Test",
+			Brand:         "Test",
+			Flavor:        "Test",
+			Carbohydrates: 1.0,
+			Electrolytes:  1.0,
+			Maltodextrose: 1.0,
+			Fructose:      1.0,
+			Caffeine:      1.0,
+			Sodium:        1.0,
+			Protein:       1.0,
+		}
+		_, err := collection.InsertOne(context, s)
+		if err != nil {
+			t.Fatalf("could not insert document: %v", err)
+		}
+
+		s.Carbohydrates = -1.0
+		body, _ := json.Marshal(s)
+		request := httptest.NewRequest("PUT", "/supplement/"+s.Gtin, bytes.NewBuffer(body))
+		response := httptest.NewRecorder()
+		wantCode := http.StatusBadRequest
+		wantBodyJSON, _ := json.Marshal(&main.ErrorResponseBody{
+			Code:    wantCode,
+			Message: fmt.Sprintf("%s: carbohydrates %f is invalid, it must be greater or equal to zero", supplement.ErrInvalidSupplement, s.Carbohydrates),
 		})
 		wantBody := string(wantBodyJSON) + "\n"
 
