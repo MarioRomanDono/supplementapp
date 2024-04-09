@@ -6,18 +6,90 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/marioromandono/supplementapp/cmd/http-server"
 	"github.com/marioromandono/supplementapp/internal/supplement"
+	"github.com/marioromandono/supplementapp/internal/supplement/persistence/postgres"
 
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+var container *tcpostgres.PostgresContainer
+var dbUrl string
+
+const tableName string = "Supplements"
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	dbName := "supplementapp"
+	dbUser := "postgres"
+	dbPassword := "password"
+
+	var err error
+
+	container, err = tcpostgres.RunContainer(
+		ctx,
+		testcontainers.WithImage("docker.io/postgres:16-alpine"),
+		tcpostgres.WithDatabase(dbName),
+		tcpostgres.WithUsername(dbUser),
+		tcpostgres.WithPassword(dbPassword),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(5*time.Second)),
+	)
+	defer func() {
+		if err := container.Terminate(ctx); err != nil {
+			log.Fatalf("failed to terminate container: %s", err)
+		}
+	}()
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	_, _, err = container.Exec(ctx, []string{
+		"psql", "-U", dbUser, "-d", dbName, "-c",
+		"CREATE TABLE " + tableName + " ( " +
+			"id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, " +
+			"gtin VARCHAR UNIQUE, " +
+			"name VARCHAR, " +
+			"brand VARCHAR, " +
+			"flavor VARCHAR, " +
+			"carbohydrates REAL, " +
+			"electrolytes REAL, " +
+			"maltodextrose REAL, " +
+			"fructose REAL, " +
+			"caffeine REAL, " +
+			"sodium REAL, " +
+			"protein REAL " +
+			")",
+	})
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = container.Snapshot(ctx, tcpostgres.WithSnapshotName("test-snapshot"))
+	if err != nil {
+		log.Panic(err)
+	}
+
+	dbUrl, err = container.ConnectionString(ctx)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	m.Run()
+}
 
 func TestGetSupplement(t *testing.T) {
 	if testing.Short() {
@@ -25,9 +97,16 @@ func TestGetSupplement(t *testing.T) {
 	}
 
 	t.Run("not found", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		gtin := "123"
 		request := httptest.NewRequest("GET", "/supplement/"+gtin, nil)
@@ -46,11 +125,17 @@ func TestGetSupplement(t *testing.T) {
 	})
 
 	t.Run("existing", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
-		want := &supplement.Supplement{
+		want := supplement.Supplement{
 			Gtin:          "1234567890123",
 			Name:          "Test",
 			Brand:         "Test",
@@ -63,10 +148,7 @@ func TestGetSupplement(t *testing.T) {
 			Sodium:        1.0,
 			Protein:       1.0,
 		}
-		_, err := collection.InsertOne(context, want)
-		if err != nil {
-			t.Fatalf("could not insert document: %v", err)
-		}
+		insertSupplement(t, ctx, dbPool, want)
 
 		request := httptest.NewRequest("GET", "/supplement/"+want.Gtin, nil)
 		response := httptest.NewRecorder()
@@ -87,9 +169,15 @@ func TestCreateSupplement(t *testing.T) {
 	}
 
 	t.Run("without body", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		request := httptest.NewRequest("POST", "/supplement", nil)
 		response := httptest.NewRecorder()
@@ -107,9 +195,15 @@ func TestCreateSupplement(t *testing.T) {
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		body := []byte(`{"gtin": "1234567890123"]`)
 		request := httptest.NewRequest("POST", "/supplement", bytes.NewBuffer(body))
@@ -130,9 +224,15 @@ func TestCreateSupplement(t *testing.T) {
 	})
 
 	t.Run("invalid supplement", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		s := &supplement.Supplement{
 			Gtin:          "1234567890123",
@@ -158,11 +258,17 @@ func TestCreateSupplement(t *testing.T) {
 	})
 
 	t.Run("already exists", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
-		s := &supplement.Supplement{
+		s := supplement.Supplement{
 			Gtin:          "1234567890123",
 			Name:          "Test",
 			Brand:         "Test",
@@ -175,10 +281,7 @@ func TestCreateSupplement(t *testing.T) {
 			Sodium:        1.0,
 			Protein:       1.0,
 		}
-		_, err := collection.InsertOne(context, s)
-		if err != nil {
-			t.Fatalf("could not insert document: %v", err)
-		}
+		insertSupplement(t, ctx, dbPool, s)
 
 		body, _ := json.Marshal(s)
 		request := httptest.NewRequest("POST", "/supplement", bytes.NewBuffer(body))
@@ -197,9 +300,15 @@ func TestCreateSupplement(t *testing.T) {
 	})
 
 	t.Run("created", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		s := &supplement.Supplement{
 			Gtin:          "1234567890123",
@@ -233,9 +342,15 @@ func TestUpdateSupplement(t *testing.T) {
 	}
 
 	t.Run("without body", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		gtin := "123"
 		request := httptest.NewRequest("PUT", "/supplement/"+gtin, nil)
@@ -254,9 +369,15 @@ func TestUpdateSupplement(t *testing.T) {
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		body := []byte(`{"gtin": "1234567890123"]`)
 		request := httptest.NewRequest("PUT", "/supplement/1234567890123", bytes.NewBuffer(body))
@@ -277,9 +398,15 @@ func TestUpdateSupplement(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		gtin := "123"
 		body, _ := json.Marshal(&supplement.Supplement{
@@ -302,11 +429,17 @@ func TestUpdateSupplement(t *testing.T) {
 	})
 
 	t.Run("invalid updatable supplement", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
-		s := &supplement.Supplement{
+		s := supplement.Supplement{
 			Gtin:          "1234567890123",
 			Name:          "Test",
 			Brand:         "Test",
@@ -319,10 +452,7 @@ func TestUpdateSupplement(t *testing.T) {
 			Sodium:        1.0,
 			Protein:       1.0,
 		}
-		_, err := collection.InsertOne(context, s)
-		if err != nil {
-			t.Fatalf("could not insert document: %v", err)
-		}
+		insertSupplement(t, ctx, dbPool, s)
 
 		s.Carbohydrates = -1.0
 		body, _ := json.Marshal(s)
@@ -342,11 +472,17 @@ func TestUpdateSupplement(t *testing.T) {
 	})
 
 	t.Run("updated", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
-		s := &supplement.Supplement{
+		s := supplement.Supplement{
 			Gtin:          "1234567890123",
 			Name:          "Test",
 			Brand:         "Test",
@@ -359,10 +495,7 @@ func TestUpdateSupplement(t *testing.T) {
 			Sodium:        1.0,
 			Protein:       1.0,
 		}
-		_, err := collection.InsertOne(context, s)
-		if err != nil {
-			t.Fatalf("could not insert document: %v", err)
-		}
+		insertSupplement(t, ctx, dbPool, s)
 
 		s.Name = "Updated"
 		body, _ := json.Marshal(s)
@@ -383,9 +516,15 @@ func TestDeleteSupplement(t *testing.T) {
 	}
 
 	t.Run("not found", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		gtin := "123"
 		request := httptest.NewRequest("DELETE", "/supplement/"+gtin, nil)
@@ -404,11 +543,17 @@ func TestDeleteSupplement(t *testing.T) {
 	})
 
 	t.Run("deleted", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
-		s := &supplement.Supplement{
+		s := supplement.Supplement{
 			Gtin:          "1234567890123",
 			Name:          "Test",
 			Brand:         "Test",
@@ -421,10 +566,7 @@ func TestDeleteSupplement(t *testing.T) {
 			Sodium:        1.0,
 			Protein:       1.0,
 		}
-		_, err := collection.InsertOne(context, s)
-		if err != nil {
-			t.Fatalf("could not insert document: %v", err)
-		}
+		insertSupplement(t, ctx, dbPool, s)
 
 		request := httptest.NewRequest("DELETE", "/supplement/"+s.Gtin, nil)
 		response := httptest.NewRecorder()
@@ -443,9 +585,15 @@ func TestListAllSupplements(t *testing.T) {
 	}
 
 	t.Run("empty", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		request := httptest.NewRequest("GET", "/supplement", nil)
 		response := httptest.NewRecorder()
@@ -460,9 +608,15 @@ func TestListAllSupplements(t *testing.T) {
 	})
 
 	t.Run("not empty", func(t *testing.T) {
-		context := context.Background()
-		collection := setup(t, context)
-		server := main.NewServer(supplement.NewSupplementService(supplement.NewMongoDBSupplementRepository(collection)))
+		ctx := context.Background()
+		t.Cleanup(func() {
+			err := container.Restore(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+		dbPool := getPool(t, ctx)
+		server := main.NewServer(supplement.NewSupplementService(postgres.NewSupplementRepository(dbPool)))
 
 		want := []supplement.Supplement{
 			{
@@ -493,10 +647,7 @@ func TestListAllSupplements(t *testing.T) {
 			},
 		}
 		for _, s := range want {
-			_, err := collection.InsertOne(context, s)
-			if err != nil {
-				t.Fatalf("could not insert document: %v", err)
-			}
+			insertSupplement(t, ctx, dbPool, s)
 		}
 
 		request := httptest.NewRequest("GET", "/supplement", nil)
@@ -512,36 +663,33 @@ func TestListAllSupplements(t *testing.T) {
 	})
 }
 
-func setup(t *testing.T, ctx context.Context) *mongo.Collection {
+func getPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	err := godotenv.Load("../../.env")
+	dbPool, err := pgxpool.New(ctx, dbUrl)
 	if err != nil {
-		t.Fatalf("could not load .env file: %v", err)
+		t.Fatal(err)
 	}
-
-	uri := os.Getenv("MONGODB_URI")
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-
-	if err != nil {
-		t.Fatalf("could not connect to mongodb: %v", err)
-	}
-
-	dbName := os.Getenv("MONGODB_DB")
-	collectionName := "supplements"
 
 	t.Cleanup(func() {
-		err := client.Database(dbName).Collection(collectionName).Drop(ctx)
-		if err != nil {
-			t.Fatalf("could not drop collection: %v", err)
-		}
-
-		err = client.Disconnect(ctx)
-		if err != nil {
-			t.Fatalf("could not disconnect from mongodb: %v", err)
-		}
+		dbPool.Close()
 	})
 
-	return client.Database(dbName).Collection(collectionName)
+	return dbPool
+}
+
+func insertSupplement(t *testing.T, ctx context.Context, dbPool *pgxpool.Pool, s supplement.Supplement) {
+	t.Helper()
+	_, err := dbPool.Exec(
+		ctx,
+		"INSERT INTO "+tableName+
+			" (gtin, name, brand, flavor, carbohydrates, electrolytes, maltodextrose, fructose, caffeine, sodium, protein) "+
+			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+		s.Gtin, s.Name, s.Brand, s.Flavor, s.Carbohydrates, s.Electrolytes, s.Maltodextrose, s.Fructose, s.Caffeine, s.Sodium, s.Protein,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func assertStatus(t testing.TB, got, want int) {

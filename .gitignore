@@ -23,5 +23,7 @@ go.work
 # IDEs
 .idea
 
-# Environment variables
-.env
+# Containers volumes
+.data/
+
+
