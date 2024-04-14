@@ -3,6 +3,7 @@ module github.com/marioromandono/supplementapp
 go 1.22.1
 
 require (
+	github.com/aws/aws-lambda-go v1.46.0
 	github.com/google/go-cmp v0.6.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/testcontainers/testcontainers-go v0.29.1
