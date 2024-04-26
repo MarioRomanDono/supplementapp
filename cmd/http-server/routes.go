@@ -36,7 +36,11 @@ func getSupplementHandler(service *supplement.SupplementService) http.HandlerFun
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(supplement)
+		err = json.NewEncoder(w).Encode(supplement)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -51,7 +55,11 @@ func listAllSupplementsHandler(service *supplement.SupplementService) http.Handl
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(supplements)
+		err = json.NewEncoder(w).Encode(supplements)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -147,5 +155,9 @@ func handleError(err error, w http.ResponseWriter) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponseBody{Code: code, Message: message})
+	encodeErr := json.NewEncoder(w).Encode(ErrorResponseBody{Code: code, Message: message})
+	if encodeErr != nil {
+		http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
+		return
+	}
 }
