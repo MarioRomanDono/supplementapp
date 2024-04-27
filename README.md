@@ -1,6 +1,7 @@
 # SupplementApp
 
 [![CI action badge](https://github.com/marioromandono/supplementapp/actions/workflows/ci.yaml/badge.svg)](https://github.com/marioromandono/supplementapp/actions/workflows/ci.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/marioromandono/supplementapp)](https://goreportcard.com/report/github.com/marioromandono/supplementapp)
 
 **SupplementApp** is an app written in Go for sports supplements management. At the moment, it allows creating, updating, deleting, retrieving by GTIN (Global Trade Identification Number) and listing all the supplements of a database. Right now the only supported database is PostgresSQL, but the project can be expanded to support additional databases if needed.
 
